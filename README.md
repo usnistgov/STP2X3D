@@ -1,5 +1,4 @@
 # NIST STEP to X3D Translator (STP2X3D)
----
 NIST STEP to X3D Translator is an open-source software that translates STEP (ISO 10303) format to X3D (ISO/IEC 19776) format.
 ## Prerequisites
 - Open CASCADE Technology (OCCT) 7.4.0 or higher (64 bit)
@@ -12,6 +11,8 @@ NIST STEP to X3D Translator is an open-source software that translates STEP (ISO
 ## Build the STEP to X3D Translator
 - Use [CMake](https://cmake.org/) to build the software.
   - vc14 must be selected for the generator.
+- You can also create a new project, include source files, and build the project in Visual Studio 2015.
+  - Add $(CSF_OCCTIncludePath) to Additional Include Directories, $(CSF_OCCTLibPath) to Additional Library Directories.
 ## Contact Information
 - Soonjo Kwon, soonjo.kwon@nist.gov, soonjo.kwon.1@gmail.com
 - William Z. Bernstein, william.bernstein@nist.gov
