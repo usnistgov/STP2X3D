@@ -1,6 +1,4 @@
-A sample README.md file
-
-# Project Name
+# STEP To X3D Translator
 ---
 ## The Goal of this project is
 
@@ -12,4 +10,5 @@ A sample README.md file
 
 ## Acknowledgement for reused code if any
 
-
+## Version
+1.0
