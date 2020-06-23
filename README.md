@@ -1,8 +1,11 @@
 # NIST STEP to X3D Translator (STP2X3D)
 ---
 ## Prerequisites
-- Open CASCADE Technology(OCCT) 7.4.0 or higher
- - Two environmental variables must be set 
+- Open CASCADE Technology (OCCT) 7.4.0 or higher (64 bit)
+  - You must rebuild the OCCT solution to regenerate DLL files
+  - Two environmental variables must be set as follows
+    - CSF_OCCTIncludePath = OCCT_Path\inc
+    - CSF_OCCTLibPath = OCCT_Path\win64\..\lib
 ## Build the STEP to X3D Translator
 - Use [CMake](https://cmake.org/) to build the software
 ## Contact Information
