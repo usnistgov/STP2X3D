@@ -1,0 +1,71 @@
+#pragma once
+
+class IShape;
+
+class Component
+{
+public:
+	Component(const TopoDS_Shape& shape);
+	~Component(void);
+
+	void SetName(const wstring& name) { m_name = name; }
+	void SetUniqueName(const wstring& name);
+	void SetTransformation(const gp_Trsf& trsf) { m_trsf = trsf; }
+	void SetParentComponent(Component* parentComp) { m_parentComponent = parentComp; }
+	void SetOriginalComponent(Component* originalComp);
+
+	void AddSubComponent(Component* subComp);
+	void AddIShape(IShape* iShape);
+
+	wstring GetName(void) const { return m_name; }
+	wstring GetUniqueName(void) const { return m_uniqueName; }
+	gp_Trsf GetTransformation(void) const { return m_trsf; }
+	TopoDS_Shape GetShape(void) const { return m_shape; }
+	Component* GetParentComponent(void) const { return m_parentComponent; }
+	Component* GetOriginalComponent(void) const { return m_originalComponent; }
+	Component* GetSubComponentAt(int index) const { return m_subComponents[index]; }
+	IShape* GetIShapeAt(int index) const { return m_iShapes[index]; }
+	
+	int GetSubComponentSize(void) const { return (int)m_subComponents.size(); }
+	int GetIShapeSize(void) const { return (int)m_iShapes.size(); }
+
+	void GetAllComponents(vector<Component*>& comps) const;
+	Bnd_Box GetBoundingBox(bool sketch) const;
+
+	bool HasUniqueName(void) const { return m_hasUniqueName; }
+	bool IsCopy(void) const;
+	bool IsAssembly(void) const;
+	bool IsRoot(void) const;
+	bool IsEmpty(void) const;
+
+	void Clean(void);
+
+protected:
+	void AddCopiedComponent(Component* copiedComp) { m_copiedComponents.push_back(copiedComp); }
+	Component* GetCopiedComponentAt(int index) const { return m_copiedComponents[index]; }
+	int GetCopiedComponentSize(void) const { return (int)m_copiedComponents.size(); }
+
+protected:
+	void Clear(void);
+
+	void CleanEmptyIShapes(void);
+	void CleanEmptySubComponents(void);
+	void CleanUselessSubComponents(void);
+
+	void ClearSubComponents(void) { m_subComponents.clear(); }
+	void ClearIShapes(void) { m_iShapes.clear(); }
+
+private:
+	wstring m_name;
+	wstring m_uniqueName;
+	TopoDS_Shape m_shape;
+	gp_Trsf m_trsf;
+	bool m_hasUniqueName;
+
+	Component* m_originalComponent;
+	Component* m_parentComponent;
+
+	vector<Component*> m_subComponents;
+	vector<Component*> m_copiedComponents;
+	vector<IShape*> m_iShapes;
+};
