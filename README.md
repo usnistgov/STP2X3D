@@ -9,20 +9,19 @@ The software is written in C++.
   - Two environmental variables must be added as follows.
     - CSF_OCCTIncludePath: OCCTPath\inc
     - CSF_OCCTLibPath: OCCTPath\win64\vc14\lib
-## Usage
-- Running the execution file in the command prompt will give you the instruction.
 ## Build the STEP to X3D Translator
 - Use [CMake](https://cmake.org/) to build the software.
   - vc14 must be selected for the generator.
 - You can also create a new project, include source files, and build the project in Visual Studio 2015.
   - Add $(CSF_OCCTIncludePath) to Additional Include Directories.
   - Add $(CSF_OCCTLibPath) to Additional Library Directories.
+## Usage
+- Running the execution file in the command prompt will give you the instruction.
 ## Contact Information
 - Soonjo Kwon, soonjo.kwon@nist.gov, soonjo.kwon.1@gmail.com
 - William Z. Bernstein, william.bernstein@nist.gov
 ## Credits
 - The translator is based on the [Open CASCADE STEP Processor](https://dev.opencascade.org/doc/overview/html/occt_user_guides__step.html).
-- Developed by Soonjo Kwon at NIST in 2020.
 ## Used by
 - [NIST STEP File Analyzer and Viewer](https://www.nist.gov/services-resources/software/step-file-analyzer-and-viewer)
 ## Version
