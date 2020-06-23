@@ -3,11 +3,14 @@
 ## Prerequisites
 - Open CASCADE Technology (OCCT) 7.4.0 or higher (64 bit)
   - You must rebuild the OCCT solution to regenerate DLL files
-  - Two environmental variables must be set as follows
-    - CSF_OCCTIncludePath = OCCT_Path\inc
-    - CSF_OCCTLibPath = OCCT_Path\win64\..\lib
+  - The complete set of DLL files required for STP2X3D to run is as follows
+    - freetype.dll, TKBO.dll, TKBRep.dll, TKCAF.dll, TKCDF.dll, TKernel.dll, TKG2d.dll, TKG3d.dll, TKGeomAlgo.dll, TKGeomBase.dll, TKHLR.dll, TKLCAF.dll. TKMath.dll, TKMesh.dll, TKPrim.dll, TKService.dll, TKShHealing.dll, TKSTEP.dll, TKSTEP209.dll, TKSTEPAttr.dll, TKSTEPBase.dll, TKTopAlgo.dll, TKV3d.dll, TKVCAF.dll, TKXCAF.dll, TKXDESTEP.dll, TKXSBase.dll
+  - Two environmental variables must be added as follows
+    - CSF_OCCTIncludePath: OCCTPath\inc
+    - CSF_OCCTLibPath: OCCTPath\win64\\..\lib
 ## Build the STEP to X3D Translator
 - Use [CMake](https://cmake.org/) to build the software
+- vc14 must be used for the generator
 ## Contact Information
 - Soonjo Kwon, soonjo.kwon@nist.gov, soonjo.kwon.1@gmail.com
 - William Z. Bernstein, william.bernstein@nist.gov
