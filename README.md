@@ -1,9 +1,10 @@
 # NIST STEP to X3D Translator (STP2X3D)
 ---
 ## Prerequisites
-
+- Open CASCADE Technology(OCCT) 7.4.0 or higher
+ - Two environmental variables must be set 
 ## Build the STEP to X3D Translator
-
+- Use [CMake](https://cmake.org/) to build the software
 ## Contact Information
 - Soonjo Kwon, soonjo.kwon@nist.gov, soonjo.kwon.1@gmail.com
 - William Z. Bernstein, william.bernstein@nist.gov
