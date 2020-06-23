@@ -1,14 +1,14 @@
-# STEP To X3D Translator
+# NIST STEP to X3D Translator (STP2X3D)
 ---
-## The Goal of this project is
+## Prerequisites
 
-## Code status, pre-release, production.
-
-## Installation Process
+## Build the STEP to X3D Translator
 
 ## Contact Information
-
-## Acknowledgement for reused code if any
-
+-Soonjo Kwon, soonjo.kwon.1@gmail.com
+-William Z. Bernstein, william.bernstein@nist.gov
+## Credits
+-The translator is based on the Open CASCADE STEP Processor (See https://dev.opencascade.org/doc/overview/html/occt_user_guides__step.html)
+-Developed by Soonjo Kwon at NIST in 2020
 ## Version
 1.0
