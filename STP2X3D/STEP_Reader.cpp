@@ -228,10 +228,6 @@ wstring STEP_Reader::GetName(const TDF_Label& label) const
 	
 	wstring name = nameText.ToWideString();
 
-	// Remove a specific character
-	if (name.find(L"\x1a") != -1)
-		name = StrTool::ReplaceCharacter(name, L"\x1a", L""); 
-
 	// Ignore the names below
 	if (name == L"COMPOUND"
 		|| name == L"COMPSOLID"
