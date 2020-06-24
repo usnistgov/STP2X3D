@@ -324,7 +324,7 @@ int wmain(int argc, wchar_t* argv[])
 	int status = -1; // Translation status
 
 #if _DEBUG
-	opt.SetInput(L"C:\\Users\\snk29\\Desktop\\s2x\\STEP_Files\\OCC-errors\\Сб DVs Hundai КППБуханка.step");
+	opt.SetInput(L"C:\\Users\\snk29\\Desktop\\s2x\\STEP_Files\\OCC-errors\\IRÁNYVÁLTÓ 2.0.stp");
 	opt.SetNormal(0);
 	opt.SetColor(1);
 	opt.SetEdge(1);
