@@ -9,7 +9,7 @@ NIST STEP to X3D Translator is an open-source software that translates a STEP (I
     - CSF_OCCTIncludePath: OCCTPath\inc
     - CSF_OCCTLibPath: OCCTPath\win64\vc14\lib
 ## Build the STEP to X3D Translator
-- Use [CMake](https://cmake.org/) to build the software.
+- Use [CMake](https://cmake.org/) 3.12.2 or higher to build the software.
   - vc14 must be selected for the generator.
 - You can also create a new project, include source files, and build the project in Visual Studio 2015.
   - Add $(CSF_OCCTIncludePath) to Additional Include Directories.
