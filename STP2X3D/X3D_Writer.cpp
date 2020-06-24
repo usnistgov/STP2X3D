@@ -89,7 +89,7 @@ wstring X3D_Writer::OpenHeader(void) const
 
 	ss_hd << "<X3D>\n";
 	ss_hd << "<head>\n";
-	ss_hd << " <meta name='Generator' content='NIST STP2X3D " << m_opt->Version() << "'/>\n";
+	ss_hd << " <meta name='Generator' content='NIST STP2X3D Translator " << m_opt->Version() << "'/>\n";
 	ss_hd << "</head>\n";
 	ss_hd << "<Scene>\n";
 
