@@ -1,4 +1,5 @@
 # Usage Guide
+The following information describes how to use the software. Running the execution file in the command line prompt will also give you the instruction.
 
 ## How to use in the command line prompt
 - STP2X3D.exe option1 value1 option2 value2 ..
