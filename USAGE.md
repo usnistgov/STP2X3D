@@ -2,8 +2,8 @@
 - STP2X3D.exe option1 value1 option2 value2..
 
 ## Options
-- --input      Input STEP file path
-- --normal     Normal vector (1:yes, 0:no) default=0
+- --input       Input STEP file path
+- --normal      Normal vector (1:yes, 0:no) default=0
 - --color      Color (1:yes, 0:no) default=1
 - --edge       Boundary edges (1:yes, 0:no) default=0
 - --sketch     Sketch geometry (1:yes, 0:no) default=1
