@@ -15,7 +15,7 @@ The NIST STEP to X3D Translator is an open-source software that translates a STE
   - Add $(CSF_OCCTIncludePath) to Additional Include Directories.
   - Add $(CSF_OCCTLibPath) to Additional Library Directories.
 ## Usage
-- Running the execution file in the command prompt will give you the instruction.
+- Please check the [usage guide](USAGE.md).
 ## Contact Information
 - Soonjo Kwon, soonjo.kwon@nist.gov, soonjo.kwon.1@gmail.com
 - William Z. Bernstein, william.bernstein@nist.gov
