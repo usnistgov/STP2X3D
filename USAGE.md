@@ -1,6 +1,6 @@
 # Usage Guide
 
-## Usage
+## How to use in the command line prompt
 - STP2X3D.exe option1 value1 option2 value2 ..
 
 ## Options
