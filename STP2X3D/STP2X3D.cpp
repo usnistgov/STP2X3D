@@ -324,7 +324,7 @@ int wmain(int argc, wchar_t* argv[])
 	int status = -1; // Translation status
 
 #if _DEBUG
-	opt.SetInput(L"C:\\Users\\snk29\\Desktop\\Planetary Gearbox.STEP");
+	opt.SetInput(L"C:\\Users\\User\\Desktop\\test.stp");
 	opt.SetNormal(0);
 	opt.SetColor(1);
 	opt.SetEdge(1);

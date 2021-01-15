@@ -14,7 +14,7 @@ X3D_Writer::X3D_Writer(S2X_Option* opt)
 	m_specularColor.SetValues(0.2, 0.2, 0.2, Quantity_TOC_RGB);
 	m_shininess = 0.9;
 	m_ambientIntensity = 1.0;
-	m_transparency = 0.0;
+	m_transparency = 1.0;
 
 	// Attribute for IndexedFaceSet required for X3DOM webvis
 	m_creaseAngle = 0.2;
@@ -416,7 +416,7 @@ wstring X3D_Writer::WriteIndexedFaceSet(IShape* iShape, int level)
 	if (isMultiColored)	// No diffuse color
 	{
 		if (isSingleTransparent)
-			transparency = 1.0 - iShape->GetColor().Alpha();
+			transparency = iShape->GetColor().Alpha();
 
 		ss_ifs << WriteAppearance(iShape, m_diffuseColor, false,
 										m_emissiveColor, false,
@@ -433,7 +433,7 @@ wstring X3D_Writer::WriteIndexedFaceSet(IShape* iShape, int level)
 			color = iShape->GetColor(); // Set diffuse color
 
 		if (isSingleTransparent)
-			transparency = 1.0 - color.Alpha();
+			transparency = color.Alpha();
 
 		ss_ifs << WriteAppearance(iShape, color.GetRGB(), true,
 										m_emissiveColor, false,
@@ -779,7 +779,7 @@ wstring X3D_Writer::WriteColor(IShape* iShape) const
 
 			if (isMultiTransparent)
 			{
-				double transparency = 1.0 - color.Alpha();
+				double transparency = color.Alpha();
 				ss_colors << NumTool::DoubleToWString(transparency) << " ";
 			}
 		}
