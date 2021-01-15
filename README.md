@@ -22,6 +22,6 @@ The NIST [STEP to X3D Translator](https://www.nist.gov/services-resources/softwa
 ## Used by
 - [NIST STEP File Analyzer and Viewer](https://www.nist.gov/services-resources/software/step-file-analyzer-and-viewer)
 ## Version
-1.0
+1.01
 ## Disclaimers
 [NIST Disclaimer](https://www.nist.gov/disclaimer)
