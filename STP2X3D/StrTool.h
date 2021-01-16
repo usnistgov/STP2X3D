@@ -30,6 +30,13 @@ public:
 		return str;
 	}
 
+	static wstring RemoveCharacter(wstring str, wstring target)
+	{		
+		str = ReplaceCharacter(str, target, L"");
+
+		return str;
+	}
+
 	static string wstr2str(wstring ws)
 	{
 		string s(ws.begin(), ws.end());

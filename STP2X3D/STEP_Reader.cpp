@@ -228,6 +228,10 @@ wstring STEP_Reader::GetName(const TDF_Label& label) const
 	
 	wstring name = nameText.ToWideString();
 
+	// Remove extra linefeed
+	name = StrTool::RemoveCharacter(name, L"\r");
+	name = StrTool::RemoveCharacter(name, L"\n");
+
 	// Ignore the names below
 	if (name == L"COMPOUND"
 		|| name == L"COMPSOLID"
