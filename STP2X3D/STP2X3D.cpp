@@ -7,7 +7,11 @@
 #include "X3D_Writer.h"
 #include "StatsPrinter.h"
 
+#include <filesystem>
+#include <experimental/filesystem>
+
 namespace fs = std::experimental::filesystem;
+
 
 // Print out the usage
 void PrintUsage(wstring exe, S2X_Option* opt)
@@ -60,12 +64,16 @@ void PrintUsage(wstring exe, S2X_Option* opt)
 }
 
 // Set option values
-bool SetOption(int argc, wchar_t* argv[], S2X_Option* opt)
+bool SetOption(int argc, char * argv[], S2X_Option* opt)
 {
 	// Print out usage
 	if (argc < 2)
 	{
-		PrintUsage(argv[0], opt);
+		string a = argv[0];
+        wstring aw = StrTool::s2ws(a);
+	
+		//PrintUsage(a, opt);
+		cout << "WRONG USAGE" << std::endl;
 		return false;
 	}
 	
@@ -75,7 +83,11 @@ bool SetOption(int argc, wchar_t* argv[], S2X_Option* opt)
 	// Set options
 	for (int i = 1; i < argc; ++i)
 	{
-		wstring token(argv[i]);
+		string stoken(argv[i]);
+        wstring token = StrTool::s2ws(stoken);
+	
+		string stoken1(argv[i]+1);
+        wstring token1 = StrTool::s2ws(stoken1);
 
 		if (token != L"--input"
 			&& token != L"--normal"
@@ -102,7 +114,7 @@ bool SetOption(int argc, wchar_t* argv[], S2X_Option* opt)
 				if (token == L"--input")
 				{
 					inputFlag = true;
-					opt->SetInput(argv[i + 1]);
+					opt->SetInput(token1);
 				}
 				else if (token == L"--normal")
 				{
@@ -180,7 +192,11 @@ bool SetOption(int argc, wchar_t* argv[], S2X_Option* opt)
 				{
 					batchFlag = true;
 					int batch = stoi(argv[i + 1]);
-					wstring input = argv[i + 2];
+					
+					string stoken2(argv[i+2]);
+                    wstring token2 = StrTool::s2ws(stoken2);
+			
+					wstring input = token2;
 					++i;
 
 					opt->SetBatch(batch);
@@ -317,7 +333,7 @@ int BatchRun(S2X_Option* opt)
 }
 
 // Main entry function
-int wmain(int argc, wchar_t* argv[])
+int main(int argc, char * argv[])
 {	
 	S2X_Option opt; // Option for STEP to X3D translator
 	
