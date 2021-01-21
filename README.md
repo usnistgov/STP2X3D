@@ -9,7 +9,7 @@ The NIST [STEP to X3D Translator](https://www.nist.gov/services-resources/softwa
 ## Build the STEP to X3D Translator
 - Use [CMake](https://cmake.org/) 3.12.2 or higher to build the software.
   - vc14 or higher (x64) should be selected for the generator.
-- You can also create a new project, include source files, and build the project in Visual Studio
+- You can also create a new project, include source files, and build the project in Visual Studio.
   - Be sure to use Visual Studio 2015 or 2017 due to [std::experimental::filesystem](https://docs.microsoft.com/en-us/cpp/standard-library/filesystem?view=msvc-150). This should be updated later.
 - Additional Directories should be added as follows.
   - Add "OCCTPath\inc" to Additional Include Directories.
