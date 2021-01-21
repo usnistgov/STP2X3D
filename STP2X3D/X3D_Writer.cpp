@@ -416,7 +416,7 @@ wstring X3D_Writer::WriteIndexedFaceSet(IShape* iShape, int level)
 	if (isMultiColored)	// No diffuse color
 	{
 		if (isSingleTransparent)
-			transparency = iShape->GetColor().Alpha();
+			transparency = 1.0 - iShape->GetColor().Alpha();
 
 		ss_ifs << WriteAppearance(iShape, m_diffuseColor, false,
 										m_emissiveColor, false,
@@ -433,7 +433,7 @@ wstring X3D_Writer::WriteIndexedFaceSet(IShape* iShape, int level)
 			color = iShape->GetColor(); // Set diffuse color
 
 		if (isSingleTransparent)
-			transparency = color.Alpha();
+			transparency = 1.0 - color.Alpha();
 
 		ss_ifs << WriteAppearance(iShape, color.GetRGB(), true,
 										m_emissiveColor, false,
