@@ -6,7 +6,8 @@ The NIST [STEP to X3D Translator](https://www.nist.gov/services-resources/softwa
     - vc14 or higher (x64) should be selected.
   - The complete set of DLL files required for STP2X3D to run is as follows.
     - freetype.dll, TKBO.dll, TKBRep.dll, TKCAF.dll, TKCDF.dll, TKernel.dll, TKG2d.dll, TKG3d.dll, TKGeomAlgo.dll, TKGeomBase.dll, TKHLR.dll, TKLCAF.dll. TKMath.dll, TKMesh.dll, TKPrim.dll, TKService.dll, TKShHealing.dll, TKSTEP.dll, TKSTEP209.dll, TKSTEPAttr.dll, TKSTEPBase.dll, TKTopAlgo.dll, TKV3d.dll, TKVCAF.dll, TKXCAF.dll, TKXDESTEP.dll, TKXSBase.dll
-## Build the STEP to X3D Translator
+
+## Build the STEP to X3D Translator - Windows
 - Use [CMake](https://cmake.org/) 3.12.2 or higher to build the software.
   - vc14 or higher (x64) should be selected for the generator.
 - You can also create a new project, include source files, and build the project in Visual Studio.
@@ -14,6 +15,17 @@ The NIST [STEP to X3D Translator](https://www.nist.gov/services-resources/softwa
 - Additional Directories should be added as follows.
   - Add "OCCTPath\inc" to Additional Include Directories.
   - Add "OCCTPath\win64\vc14\lib" to Additional Library Directories.
+  
+  ## Build the STEP to X3D Translator - Linux
+- Use [CMake](https://cmake.org/) 3.12.2 or higher to build the software.
+- Modify lines 5-6 of ``STP2X3D/CMakeLists.txt`` to properly set link to OCCT on your local machine.
+- Run the following commands from the repository root directory (where this README is located):
+```
+mkdir build
+cd build
+cmake ..
+make
+```
 ## Usage
 - NIST STP2X3D is a command line software. Please check out the [Usage guide](USAGE.md).
 ## Contact Information
