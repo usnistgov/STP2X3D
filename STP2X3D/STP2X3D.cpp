@@ -72,8 +72,8 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 		string a = argv[0];
         wstring aw = StrTool::s2ws(a);
 	
-		//PrintUsage(a, opt);
-		cout << "WRONG USAGE" << std::endl;
+		PrintUsage(aw, opt);
+		//cout << "WRONG USAGE" << std::endl;
 		return false;
 	}
 	
@@ -86,7 +86,7 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 		string stoken(argv[i]);
         wstring token = StrTool::s2ws(stoken);
 	
-		string stoken1(argv[i]+1);
+		string stoken1(argv[i + 1]);
         wstring token1 = StrTool::s2ws(stoken1);
 
 		if (token != L"--input"
@@ -118,7 +118,7 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--normal")
 				{
-					int normal = stoi(argv[i + 1]);
+					int normal = stoi(token1);
 					opt->SetNormal(normal);
 
 					if (normal != 0 
@@ -130,7 +130,7 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--color")
 				{
-					int color = stoi(argv[i + 1]);
+					int color = stoi(token1);
 					opt->SetColor(color);
 
 					if (color != 0 
@@ -142,7 +142,7 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--edge")
 				{
-					int edge = stoi(argv[i + 1]);
+					int edge = stoi(token1);
 					opt->SetEdge(edge);
 
 					if (edge != 0 
@@ -154,7 +154,7 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--sketch")
 				{
-					int sketch = stoi(argv[i + 1]);
+					int sketch = stoi(token1);
 					opt->SetSketch(sketch);
 
 					if (sketch != 0
@@ -166,7 +166,7 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--html")
 				{
-					int html = stoi(argv[i + 1]);
+					int html = stoi(token1);
 					opt->SetHtml(html);
 
 					if (html != 0 
@@ -178,7 +178,7 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--quality")
 				{
-					double quality = stof(argv[i + 1]);
+					double quality = stof(token1);
 					opt->SetQuality(quality);
 
 					if (quality < 1.0 
@@ -191,9 +191,9 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				else if (token == L"--batch")
 				{
 					batchFlag = true;
-					int batch = stoi(argv[i + 1]);
+					int batch = stoi(token1);
 					
-					string stoken2(argv[i+2]);
+					string stoken2(argv[i + 2]);
                     wstring token2 = StrTool::s2ws(stoken2);
 			
 					wstring input = token2;
