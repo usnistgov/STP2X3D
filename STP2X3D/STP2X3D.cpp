@@ -17,9 +17,9 @@ namespace fs = std::experimental::filesystem;
 void PrintUsage(wstring exe, S2X_Option* opt)
 {
 	cout << endl;
-	cout << "/////////////////////////////////////////////////" << endl;
+	cout << "//////////////////////////////////////////////////" << endl;
 	wcout << "//  NIST STEP to X3D Translator (STP2X3D) " << opt->Version() <<"  //" << endl;
-	cout << "/////////////////////////////////////////////////" << endl;
+	cout << "//////////////////////////////////////////////////" << endl;
 	cout << endl;
 	cout << "[Usage]" << endl;
 	wcout << " " << exe << " option1 value1 option2 value2.." << endl;
@@ -340,7 +340,7 @@ int main(int argc, char * argv[])
 	int status = -1; // Translation status
 
 #if _DEBUG
-	opt.SetInput(L"C:\\Users\\User\\Desktop\\test.stp");
+	opt.SetInput(L"C:\\Users\\User\\Desktop\\transparency\\MESIN CNC BALL CUTTING FULL ASM.stp");
 	opt.SetNormal(0);
 	opt.SetColor(1);
 	opt.SetEdge(1);
