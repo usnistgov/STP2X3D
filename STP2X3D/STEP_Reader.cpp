@@ -4,7 +4,6 @@
 #include "Component.h"
 #include "IShape.h"
 
-
 STEP_Reader::STEP_Reader(S2X_Option* opt)
 	: m_opt(opt),
 	m_stepData(nullptr)
@@ -120,7 +119,7 @@ void STEP_Reader::AddSubComponents(Component* comp, const TDF_Label& label)
 		comp->SetUniqueName(GetName(label)); // Set the component's name
 
 		TDF_LabelSequence label_comps;
-		m_shapeTool->GetComponents(label, label_comps);
+        m_shapeTool->GetComponents(label, label_comps);
 
 		int compSize = label_comps.Length();
 
@@ -224,9 +223,15 @@ wstring STEP_Reader::GetName(const TDF_Label& label) const
 	TCollection_ExtendedString nameText;
 	
 	if (label.FindAttribute(TDataStd_Name::GetID(), nameData))
-		nameText = nameData->Get();
+        nameText = nameData->Get();
 	
-	wstring name = nameText.ToWideString();
+    std::stringstream ss;
+    ss << nameText << endl;
+
+    std::string s = ss.str();
+    //cout << s << endl;
+	
+    std::wstring name = StrTool::s2ws (s); //L"dd"; //nameText.ToWideString();
 
 	// Remove extra linefeed
 	name = StrTool::RemoveCharacter(name, L"\r");

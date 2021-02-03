@@ -4,7 +4,6 @@
 #include "IShape.h"
 #include "Mesh.h"
 
-
 X3D_Writer::X3D_Writer(S2X_Option* opt)
 	: m_opt(opt)
 {
@@ -46,10 +45,12 @@ void X3D_Writer::WriteX3D(Model* model)
 
 	// Write X3D file
 	wstring filePath = m_opt->Output();
+	char fpath[256];
+	std::wcstombs(fpath, filePath.c_str(), 256);
 
 	wofstream wof;
-	wof.imbue(locale(locale::empty(), new codecvt_utf8<wchar_t, 0x10ffff, generate_header>));
-	wof.open(filePath.c_str());
+	//static std::locale empty; wof.imbue(std::locale(empty, new codecvt_utf8<wchar_t, 0x10ffff, generate_header>));
+	wof.open(fpath/*filePath.c_str()*/);
 	wof << ss_x3d.str().c_str();
 	wof.close();
 

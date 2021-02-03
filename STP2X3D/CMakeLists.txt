@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.12.2)
 
 project(STP2X3D)
 
+set (ENV{CSF_OCCTIncludePath} /usr/local/include/opencascade)
+set (ENV{CSF_OCCTLibPath} /usr/local/lib)
+
 foreach (EnvVar IN ITEMS CSF_OCCTIncludePath CSF_OCCTLibPath)
   if ("$ENV{${EnvVar}}" STREQUAL "")
     message(WARNING, "Environmental variable '${EnvVar}' is not defined.")
@@ -49,6 +52,58 @@ set_property(TARGET STP2X3D
   $<$<CONFIG:Release>:
     $ENV{CSF_OCCTIncludePath}>
 )
+
+target_include_directories(${PROJECT_NAME} PRIVATE $ENV{CSF_OCCTIncludePath})
+target_link_libraries(${PROJECT_NAME} stdc++fs
+    TKBinL
+    TKBin
+    TKBinTObj
+    TKBinXCAF
+    TKBool
+    TKBO
+    TKBRep
+    TKCAF
+    TKCDF
+    TKernel
+    TKFeat
+    TKFillet
+    TKG2d
+    TKG3d
+    TKGeomAlgo
+    TKGeomBase
+    TKHLR
+    TKIGES
+    TKLCAF
+    TKMath
+    TKMesh
+    TKMeshVS
+    TKOffset
+    TKOpenGl
+    TKPrim
+    TKRWMesh
+    TKService
+    TKShHealing
+    TKStdL
+    TKStd
+    TKSTEP209
+    TKSTEPAttr
+    TKSTEPBase
+    TKSTEP
+    TKSTL
+    TKTObj
+    TKTopAlgo
+    TKV3d
+    TKVCAF
+    TKVRML
+    TKXCAF
+    TKXDEIGES
+    TKXDESTEP
+    TKXMesh
+    TKXmlL
+    TKXml
+    TKXmlTObj
+    TKXmlXCAF
+    TKXSBase )
 
 # Preprocessor definitions
 target_compile_definitions(STP2X3D PRIVATE
