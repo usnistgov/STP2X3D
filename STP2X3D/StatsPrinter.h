@@ -14,8 +14,8 @@ public:
 		assert(!bndBox.IsVoid());
 
 		// Bounding boxes are enlarged by the given tolerance 
-		// double tol = 2.5 / opt->Quality();	// v1.0  (linear deflection for tessellation)
-		double tol = bndBox.GetGap();			// v1.01 (gap set by OCC)
+		// double tol = 2.5 / opt->Quality();	// before v1.02  (linear deflection for tessellation)
+		double tol = bndBox.GetGap();			// after  v1.02 (gap set by OCC)
 
 		double X_min = 0.0, Y_min = 0.0, Z_min = 0.0;
 		double X_max = 0.0, Y_max = 0.0, Z_max = 0.0;

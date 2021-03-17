@@ -28,7 +28,7 @@ public:
 	bool SFA(void) const { return m_SFA; }
 
 	// Software version (as of Jan 2021)
-	wstring Version(void) const { return L"1.01"; }
+	wstring Version(void) const { return L"1.02"; }
 
 private:
 	wstring m_input;	// Input file path
