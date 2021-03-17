@@ -340,7 +340,7 @@ int main(int argc, char * argv[])
 	int status = -1; // Translation status
 
 #if _DEBUG
-	opt.SetInput(L"C:\\Users\\User\\Desktop\\transparency\\MESIN CNC BALL CUTTING FULL ASM.stp");
+	opt.SetInput(L"C:\\Users\\User\\Desktop\\s2x\\testcases\\box1.stp");
 	opt.SetNormal(0);
 	opt.SetColor(1);
 	opt.SetEdge(1);
