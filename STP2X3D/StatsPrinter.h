@@ -13,8 +13,10 @@ public:
 		Bnd_Box bndBox = model->GetBoundingBox(opt->Sketch());
 		assert(!bndBox.IsVoid());
 
-		// Compute Bounding box for the top-level homogeneous shape
-		if (model->GetShapeType() != Hybrid_Geom
+		// Compute Bounding box for the top-level shape
+		if ((model->GetShapeType() != Hybrid_Geom
+			|| (model->GetShapeType() == Hybrid_Geom
+				&& opt->Sketch()))
 			&& model->GetRootComponentSize() == 1)
 		{
 			TopoDS_Shape shape = model->GetRootComponentAt(0)->GetShape();
