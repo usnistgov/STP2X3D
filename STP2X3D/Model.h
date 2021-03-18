@@ -14,6 +14,7 @@ public:
 
 	void GetAllComponents(vector<Component*>& comps) const;
 	Bnd_Box GetBoundingBox(bool sketch) const;
+	ShapeType GetShapeType(void) const;
 
 	bool IsEmpty(void) const;
 

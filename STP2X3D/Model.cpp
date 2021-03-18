@@ -34,6 +34,41 @@ Bnd_Box Model::GetBoundingBox(bool sketch) const
 	return bndBox;
 }
 
+ShapeType Model::GetShapeType(void) const
+{
+	vector<Component*> comps;
+	GetAllComponents(comps);
+
+	int shapeCount = 0;
+	int sketchCount = 0;
+
+	ShapeType shapeType = Face_Geom;
+
+	for (const auto& comp : comps)
+	{
+		for (int i = 0; i < comp->GetIShapeSize(); ++i)
+		{
+			IShape* iShape = comp->GetIShapeAt(i);
+			shapeCount++;
+
+			if (iShape->IsSketchGeometry())
+				sketchCount++;
+		}
+	}
+
+	comps.clear();
+
+	if (sketchCount > 0)
+	{
+		if (shapeCount == sketchCount)
+			shapeType = Sketch_Geom;
+		else
+			shapeType = Hybrid_Geom;
+	}
+
+	return shapeType;
+}
+
 bool Model::IsEmpty(void) const
 {
 	int size = 0;

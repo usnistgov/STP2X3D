@@ -13,8 +13,17 @@ public:
 		Bnd_Box bndBox = model->GetBoundingBox(opt->Sketch());
 		assert(!bndBox.IsVoid());
 
+		// Compute Bounding box for the top-level homogeneous shape
+		if (model->GetShapeType() != Hybrid_Geom
+			&& model->GetRootComponentSize() == 1)
+		{
+			TopoDS_Shape shape = model->GetRootComponentAt(0)->GetShape();
+			bndBox = OCCUtil::ComputeBoundingBox(shape);
+			bndBox = bndBox.FinitePart();
+		}
+
 		// Bounding boxes are enlarged by the given tolerance 
-		// double tol = 2.5 / opt->Quality();	// before v1.02  (linear deflection for tessellation)
+		// double tol = 2.5 / opt->Quality();	// before v1.02 (linear deflection for tessellation)
 		double tol = bndBox.GetGap();			// after  v1.02 (gap set by OCC)
 
 		double X_min = 0.0, Y_min = 0.0, Z_min = 0.0;

@@ -18,6 +18,7 @@ using namespace std;
 #include "NumTool.h"
 #include "StrTool.h"
 #include "S2X_Option.h"
+#include "ShapeType.h"
 #include "Model.h"
 
 constexpr auto PI = 3.14159265359;
