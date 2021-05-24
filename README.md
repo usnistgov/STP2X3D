@@ -35,7 +35,7 @@ The NIST [STEP to X3D Translator](https://www.nist.gov/services-resources/softwa
 - NIST STP2X3D is a command line software. Please check out the [Usage guide](USAGE.md).
 
 ## Contact Information
-- Soonjo Kwon, soonjo.kwon.1@gmail.com
+- Soonjo Kwon, soonjo.kwon@kumoh.ac.kr
 - William Z. Bernstein, william.bernstein@nist.gov
 
 ## Used by
