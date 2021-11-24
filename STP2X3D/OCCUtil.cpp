@@ -4,13 +4,13 @@
 
 namespace OCCUtil
 {
-	int GetID(const TopoDS_Shape& shape)
+	const int GetID(const TopoDS_Shape& shape)
 	{
-		int id = shape.HashCode(INT_MAX);
+		const int id = shape.HashCode(INT_MAX);
 		return id;
 	}
 
-	Bnd_Box ComputeBoundingBox(const TopoDS_Shape& shape)
+	const Bnd_Box ComputeBoundingBox(const TopoDS_Shape& shape)
 	{
 		Bnd_Box bndBox;
 		BRepBndLib::Add(shape, bndBox);
@@ -52,7 +52,7 @@ namespace OCCUtil
 		}
 	}
 
-	TopoDS_Shape GetCopiedShape(const TopoDS_Shape& shape)
+	const TopoDS_Shape& GetCopiedShape(const TopoDS_Shape& shape)
 	{
 		BRepBuilderAPI_Copy copier(shape);
 		const TopoDS_Shape& copiedShape = copier.Shape();
@@ -96,10 +96,10 @@ namespace OCCUtil
 		return false;
 	}
 
-	TopoDS_Shape TransformShape(const TopoDS_Shape& shape, const gp_Trsf& trsf)
+	const TopoDS_Shape& TransformShape(const TopoDS_Shape& shape, const gp_Trsf& trsf)
 	{
 		// Note that a shape loses its color after transformation
-		TopoDS_Shape trsfShape = BRepBuilderAPI_Transform(shape, trsf).Shape();
+		const TopoDS_Shape& trsfShape = BRepBuilderAPI_Transform(shape, trsf).Shape();
 
 		return trsfShape;
 	}
@@ -108,7 +108,7 @@ namespace OCCUtil
 	{
 		BRepTools::Clean(shape);
 		BRepMesh_IncrementalMesh bMesh(shape, linearDeflection, isRelative, angularDeflection, isParallel);
-
+		
 		return bMesh.IsDone();
 	}
 
@@ -143,5 +143,17 @@ namespace OCCUtil
 			return true;
 
 		return false;
+	}
+
+	double GetDeflection(const TopoDS_Shape& shape)
+	{
+		Bnd_Box bndBox = ComputeBoundingBox(shape);
+		gp_Pnt minPnt = bndBox.CornerMin();
+		gp_Pnt maxPnt = bndBox.CornerMax();
+		double deviationCoefficient = 0.001;
+
+		double deflection = Prs3d::GetDeflection(Graphic3d_Vec3d(minPnt.X(), minPnt.Y(), minPnt.Z()), Graphic3d_Vec3d(maxPnt.X(), maxPnt.Y(), maxPnt.Z()), deviationCoefficient);
+		
+		return Max(deflection, Precision::Confusion());
 	}
 }

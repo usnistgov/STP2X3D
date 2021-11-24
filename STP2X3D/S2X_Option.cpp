@@ -9,9 +9,11 @@ S2X_Option::S2X_Option()
     m_edge(false),
     m_sketch(true),
     m_html(false),
+    m_tessellation(false),
     m_quality(5.0),
     m_batch(-1),
-    m_SFA(true)
+    m_SFA(true),
+    m_gdt(false)
 {
 }
 
@@ -59,7 +61,15 @@ void S2X_Option::SetHtml(const int& html)
         m_html = true;
 }
 
-wstring S2X_Option::Output(void) const
+void S2X_Option::SetTessellation(const int& tessellation)
+{
+    if (tessellation == 0)
+        m_tessellation = false;
+    else
+        m_tessellation = true;
+}
+
+const wstring S2X_Option::Output(void) const
 {
     wstring output = m_input.substr(0, m_input.find_last_of(L"."));
     

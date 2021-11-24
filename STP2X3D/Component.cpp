@@ -26,7 +26,7 @@ void Component::SetUniqueName(const wstring& name)
 	m_hasUniqueName = true;
 }
 
-void Component::SetOriginalComponent(Component* originalComp)
+void Component::SetOriginalComponent(Component*& originalComp)
 {
 	m_originalComponent = originalComp;
 
@@ -34,13 +34,13 @@ void Component::SetOriginalComponent(Component* originalComp)
 		originalComp->AddCopiedComponent(this);
 }
 
-void Component::AddSubComponent(Component* subComp)
+void Component::AddSubComponent(Component*& subComp)
 {
 	m_subComponents.push_back(subComp);
 	subComp->SetParentComponent(this);
 }
 
-void Component::AddIShape(IShape* iShape)
+void Component::AddIShape(IShape*& iShape)
 {
 	m_iShapes.push_back(iShape);
 	iShape->SetComponent(this);
@@ -143,12 +143,18 @@ void Component::CleanUselessSubComponents(void)
 
 		// Migrate all IShapes of the subcomp to the comp
 		for (int i = 0; i < subComp->GetIShapeSize(); ++i)
-			AddIShape(subComp->GetIShapeAt(i));
+		{
+			IShape* shape = subComp->GetIShapeAt(i);
+			AddIShape(shape);
+		}
 
 		// Migrate all subcomps of the subcomp to the comp
 		for (int i = 0; i < subComp->GetSubComponentSize(); ++i)
-			AddSubComponent(subComp->GetSubComponentAt(i));
-	
+		{
+			Component* comp = subComp->GetSubComponentAt(i);
+			AddSubComponent(comp);
+		}
+		
 		// Delete the subcomp
 		subComp->ClearIShapes();
 		subComp->ClearSubComponents();
@@ -189,7 +195,7 @@ bool Component::IsEmpty(void) const
 	return false;
 }
 
-Bnd_Box Component::GetBoundingBox(bool sketch) const
+const Bnd_Box Component::GetBoundingBox(bool sketch) const
 {
 	Bnd_Box bndBox;
 
@@ -219,7 +225,7 @@ Bnd_Box Component::GetBoundingBox(bool sketch) const
 
 		const TopoDS_Shape& shape = iShape->GetShape();
 
-		Bnd_Box subBndBox = OCCUtil::ComputeBoundingBox(shape);
+		const Bnd_Box& subBndBox = OCCUtil::ComputeBoundingBox(shape);
 		bndBox.Add(subBndBox);
 	}
 	

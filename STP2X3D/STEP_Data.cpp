@@ -62,7 +62,7 @@ void STEP_Data::StoreStepDataForShapes(const STEPControl_Reader& reader)
 	}
 }
 
-string STEP_Data::GetEntityTypeFromShape(const TopoDS_Shape& shape) const
+const string STEP_Data::GetEntityTypeFromShape(const TopoDS_Shape& shape) const
 {
 	int shapeID = OCCUtil::GetID(shape);
 	string stepEntityType;
@@ -73,7 +73,7 @@ string STEP_Data::GetEntityTypeFromShape(const TopoDS_Shape& shape) const
 	return stepEntityType;
 }
 
-int STEP_Data::GetEntityIDFromShape(const TopoDS_Shape& shape) const
+const int STEP_Data::GetEntityIDFromShape(const TopoDS_Shape& shape) const
 {
 	int shapeID = OCCUtil::GetID(shape);
 	int stepEntityID = 0;

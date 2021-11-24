@@ -27,15 +27,20 @@ IShape::~IShape(void)
 void IShape::AddColor(const TopoDS_Shape& shape, const Quantity_ColorRGBA& color)
 {
 	int shapeID = OCCUtil::GetID(shape);
-	m_shapeIDcolorMap.insert({ shapeID,color });
+	//m_shapeIDcolorMap.insert({ shapeID,color });
 	
+	if (m_shapeIDcolorMap.find(shapeID) == m_shapeIDcolorMap.end())
+		m_shapeIDcolorMap.insert({ shapeID,color });
+	else
+		m_shapeIDcolorMap.find(shapeID)->second = color;
+
 	CheckColor(color);
 }
 
-Quantity_ColorRGBA IShape::GetColor(const TopoDS_Shape& shape) const
+const Quantity_ColorRGBA& IShape::GetColor(const TopoDS_Shape& shape) const
 {
 	int shapeID = OCCUtil::GetID(shape);
-	Quantity_ColorRGBA color = m_shapeIDcolorMap.find(shapeID)->second;
+	const Quantity_ColorRGBA& color = m_shapeIDcolorMap.find(shapeID)->second;
 
 	return color;
 }

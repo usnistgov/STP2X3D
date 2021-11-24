@@ -6,12 +6,70 @@
 #include "Tessellator.h"
 #include "X3D_Writer.h"
 #include "StatsPrinter.h"
-
-#include <filesystem>
-#include <experimental/filesystem>
+#include "GDT_Item.h"
+#include "Mesh.h"
+//#include <experimental/filesystem>
 
 namespace fs = std::experimental::filesystem;
 
+void Test(S2X_Option* opt)
+{
+	Model* model = new Model();
+
+	/** START_STEP **/
+	cout << "Reading a STEP file.." << endl;
+	STEP_Reader sr(opt);
+	if (!sr.ReadSTEP(model))
+	{
+		delete model;
+		return;
+	}
+	/** END_STEP **/
+
+	vector<Component*> comps;
+	model->GetAllComponents(comps);
+
+	ofstream fout;
+	fout.open("C:\\Users\\User\\Desktop\\Result.txt");
+
+	for (const auto& comp : comps)
+	{
+		for (int i = 0; i < comp->GetIShapeSize(); ++i)
+		{
+			IShape* iShape = comp->GetIShapeAt(i);
+			const TopoDS_Shape& shape = iShape->GetShape();
+
+			for (double k = 0.349065; k <= 0.349066; k = k + 0.0000001)
+			{
+				OCCUtil::TessellateShape(shape, 0.5, true, k, true);
+
+				int triCount = 0;
+
+				TopExp_Explorer ExpFace;
+				for (ExpFace.Init(shape, TopAbs_FACE); ExpFace.More(); ExpFace.Next())
+				{
+					const TopoDS_Face& face = TopoDS::Face(ExpFace.Current());
+
+					TopLoc_Location loc;
+
+					const Handle(Poly_Triangulation)& myT = BRep_Tool::Triangulation(face, loc);
+
+					// Skip if triangulation has failed
+					if (!myT
+						|| myT.IsNull())
+						continue;
+
+					triCount = triCount + myT->NbTriangles();
+				}
+
+				fout << k << "\t" << triCount << endl;
+			}
+			
+		}
+	}
+
+	fout.close();
+}
 
 // Print out the usage
 void PrintUsage(wstring exe, S2X_Option* opt)
@@ -32,6 +90,7 @@ void PrintUsage(wstring exe, S2X_Option* opt)
 	cout << " --sketch     Sketch geometry (1:yes, 0:no) default=" << opt->Sketch() << endl;
 	cout << " --html       Output file type (1:html, 0:x3d) default=" << opt->Html() << endl;
 	cout << " --quality    Mesh quality (1-low to 10-high) default=" << opt->Quality() << endl;
+	cout << " --gdt        Geometric elements related to GD&T (1:yes, 0:no) default=" << opt->GDT() << endl;
 	cout << " --batch      Processing multiple STEP files (1:include sub-directories, 0:current dir)" << endl;
 	cout << "              Followed by a folder path (e.g. --batch 0 c:\\)" << endl;
 	cout << endl;
@@ -96,7 +155,10 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 			&& token != L"--sketch"
 			&& token != L"--html"
 			&& token != L"--quality"
-			&& token != L"--batch")
+			&& token != L"--gdt"
+			&& token != L"--batch"
+			&& token != L"--sfa"
+			&& token != L"--tess")
 		{
 			wcout << "No such option: " << token << endl;
 			return false;
@@ -176,6 +238,42 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 						return false;
 					}
 				}
+				else if (token == L"--gdt")
+				{
+					int gdt = stoi(token1);
+					opt->SetGDT(gdt);
+
+					if (gdt != 0
+						&& gdt != 1)
+					{
+						cout << "gdt must be either 0 or 1." << endl;
+						return false;
+					}
+				}
+				else if (token == L"--sfa")
+				{
+					int sfa = stoi(token1);
+					opt->SetSFA(sfa);
+
+					if (sfa != 0
+						&& sfa != 1)
+					{
+						cout << "sfa must be either 0 or 1." << endl;
+						return false;
+					}
+				}
+				else if (token == L"--tess")
+				{
+					int tess = stoi(token1);
+					opt->SetTessellation(tess);
+
+					if (tess != 0
+						&& tess != 1)
+					{
+						cout << "tess must be either 0 or 1." << endl;
+						return false;
+					}
+				}
 				else if (token == L"--quality")
 				{
 					double quality = stof(token1);
@@ -244,20 +342,19 @@ int RunSTP2X3D(S2X_Option* opt)
 {
 	Model* model = new Model();
 
-	StopWatch* sw = new StopWatch();
-	sw->Start();
+	StopWatch sw;
+	sw.Start();
 
 	/** START_STEP **/
 	cout << "Reading a STEP file.." << endl;
-	STEP_Reader* sr = new STEP_Reader(opt);
-	if (!sr->ReadSTEP(model))
+	STEP_Reader sr(opt);
+	if (!sr.ReadSTEP(model))
 	{
-		delete sr;
 		delete model;
 		return -1;
 	}
-	delete sr;
 	/** END_STEP **/
+	//sw.Lap();
 
 	/** START_TESSELLATION **/
 	cout << "Tessellating.." << endl;
@@ -265,13 +362,14 @@ int RunSTP2X3D(S2X_Option* opt)
 	ts->Tessellate(model);
 	delete ts;
 	/** END_TESSELLATION **/
+	//sw.Lap();
 
 	/** START_X3D **/
 	cout << "Writing an X3D file.." << endl;
-	X3D_Writer* xw = new X3D_Writer(opt);
-	xw->WriteX3D(model);
-	delete xw;
+	X3D_Writer xw(opt);
+	xw.WriteX3D(model);
 	/** END_X3D **/
+	//sw.Lap();
 
 	/// Print results required for SFA
 	if (opt->SFA())
@@ -283,10 +381,9 @@ int RunSTP2X3D(S2X_Option* opt)
 	///
 
 	cout << "STEP to X3D completed!" << endl;
-	sw->End();
+	sw.End();
 
 	delete model;
-	delete sw;
 
 	return 0;
 }
@@ -309,21 +406,21 @@ int BatchRun(S2X_Option* opt)
 
 	int status = 0;
 
-	for (size_t i = 0; i < paths.size(); ++i)
+	for (const auto& path : paths)
 	{
-		wstring ext = paths[i].filename().extension().generic_wstring();
+		wstring ext = path.filename().extension().generic_wstring();
 		
 		if (!(ext == L".stp" || ext == L".STP"
 			|| ext == L".step" || ext == L".STEP"
 			|| ext == L".p21" || ext == L".P21"))
 			continue;
 		
-		wstring inFilePath = paths[i].generic_wstring();
+		wstring inFilePath = path.generic_wstring();
 
 		S2X_Option tmp_opt(*opt);
 		tmp_opt.SetInput(inFilePath);
 
-		wcout << "[" << paths[i].filename() << "]" << endl;
+		wcout << "[" << path.filename() << "]" << endl;
 		status += RunSTP2X3D(&tmp_opt);
 	}
 
@@ -340,22 +437,27 @@ int main(int argc, char * argv[])
 	int status = -1; // Translation status
 
 #if _DEBUG
-	opt.SetInput(L"C:\\Users\\User\\Desktop\\s2x\\testcases\\box1.stp");
+	opt.SetInput(L"C:\\Users\\User\\Desktop\\test\\plate.stp");
 	opt.SetNormal(0);
 	opt.SetColor(1);
-	opt.SetEdge(1);
+	opt.SetEdge(0);
 	opt.SetSketch(0);
 	opt.SetHtml(1);
-	opt.SetQuality(5.0);
+	opt.SetQuality(7.0);
+	opt.SetGDT(1);
+	opt.SetSFA(false);
 #else
 	if (!SetOption(argc, argv, &opt))
 		return status;
 #endif
 
+	//Test(&opt);
+	//return true;
+
 	if (opt.Batch() == -1) // Translate an input STEP file
 		status = RunSTP2X3D(&opt);
 	else // Translate multiple STEP files
 		status = BatchRun(&opt);
-
+	
 	return status;
 }

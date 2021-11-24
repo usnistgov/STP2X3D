@@ -3,10 +3,10 @@
 namespace OCCUtil
 {
 	// Get unique id for shape
-	int GetID(const TopoDS_Shape& shape);
+	const int GetID(const TopoDS_Shape& shape);
 
 	// Compute bounding box of a shape
-	Bnd_Box ComputeBoundingBox(const TopoDS_Shape& shape);
+	const Bnd_Box ComputeBoundingBox(const TopoDS_Shape& shape);
 
 	// Compute volue of a shape
 	double ComputeVolume(const TopoDS_Shape& shape);
@@ -15,7 +15,7 @@ namespace OCCUtil
 	void RemoveFreeWires(TopoDS_Shape shape);
 
 	// Copy and return the shape 
-	TopoDS_Shape GetCopiedShape(const TopoDS_Shape& shape);
+	const TopoDS_Shape& GetCopiedShape(const TopoDS_Shape& shape);
 
 	// Check if the shape has faces
 	bool HasFace(const TopoDS_Shape& shape);
@@ -30,7 +30,7 @@ namespace OCCUtil
 	bool HasWire(const TopoDS_Shape& shape);
 
 	// Transform a shape
-	TopoDS_Shape TransformShape(const TopoDS_Shape& shape, const gp_Trsf& trsf);
+	const TopoDS_Shape& TransformShape(const TopoDS_Shape& shape, const gp_Trsf& trsf);
 
 	// Tessellate a shape
 	bool TessellateShape(const TopoDS_Shape& shape, double linearDeflection, bool isRelative, double angularDeflection, bool isParallel);
@@ -43,4 +43,7 @@ namespace OCCUtil
 
 	// Check if transformed
 	bool IsTransformed(const gp_Trsf& transform);
+
+	// Get the relative deflection for a given shape
+	double GetDeflection(const TopoDS_Shape& shape);
 }

@@ -3,6 +3,7 @@
 #include "STEP_Data.h"
 #include "Component.h"
 #include "IShape.h"
+#include "GDT_Item.h"
 
 STEP_Reader::STEP_Reader(S2X_Option* opt)
 	: m_opt(opt),
@@ -28,6 +29,7 @@ bool STEP_Reader::ReadSTEP(Model* model)
 		STEPCAFControl_Reader cafReader;
 		cafReader.SetNameMode(true);
 		cafReader.SetColorMode(true);
+		cafReader.SetGDTMode(true);
 
 		TCollection_AsciiString aFileName((const wchar_t*)filePath.c_str());
 		status = cafReader.ReadFile(aFileName.ToCString());
@@ -43,7 +45,14 @@ bool STEP_Reader::ReadSTEP(Model* model)
 			m_stepData = new STEP_Data(cafReader.Reader());
 			m_shapeTool = XCAFDoc_DocumentTool::ShapeTool(doc->Main());
 			m_colorTool = XCAFDoc_DocumentTool::ColorTool(doc->Main());
-			
+			m_gdtTool = XCAFDoc_DocumentTool::DimTolTool(doc->Main());
+			m_viewTool = XCAFDoc_DocumentTool::ViewTool(doc->Main());
+			//m_noteTool = XCAFDoc_DocumentTool::NotesTool(doc->Main());
+
+			// Read GD&T information
+			if (m_opt->GDT())
+				ReadGDT(model);
+
 			// Update color option if there's no color
 			UpdateColorOption();
 
@@ -53,7 +62,7 @@ bool STEP_Reader::ReadSTEP(Model* model)
 
 			// It's usually 1 for assemblies
 			int shapeSize = labels_shapes.Length();
-
+			
 			// Save shapes, structure, and colors to the model
 			for (int i = 1; i <= shapeSize; ++i)
 			{
@@ -111,7 +120,7 @@ bool STEP_Reader::ReadSTEP(Model* model)
 	return true;
 }
 
-void STEP_Reader::AddSubComponents(Component* comp, const TDF_Label& label)
+void STEP_Reader::AddSubComponents(Component*& comp, const TDF_Label& label)
 {
 	// Check label type
 	if (m_shapeTool->IsAssembly(label)) // Assembly or sub-assembly component
@@ -217,7 +226,7 @@ void STEP_Reader::GetSubShapes(const TopoDS_Shape& shape, vector<TopoDS_Shape>& 
 	}
 }
 
-wstring STEP_Reader::GetName(const TDF_Label& label) const
+const wstring STEP_Reader::GetName(const TDF_Label& label) const
 {
 	Handle(TDataStd_Name) nameData;
 	TCollection_ExtendedString nameText;
@@ -225,13 +234,16 @@ wstring STEP_Reader::GetName(const TDF_Label& label) const
 	if (label.FindAttribute(TDataStd_Name::GetID(), nameData))
         nameText = nameData->Get();
 	
-    std::stringstream ss;
+	/*
+    stringstream ss;
     ss << nameText << endl;
 
-    std::string s = ss.str();
-    //cout << s << endl;
-	
-    std::wstring name = StrTool::s2ws (s); //L"dd"; //nameText.ToWideString();
+	string s = ss.str();
+    wstring name = StrTool::s2ws(s); //nameText.ToWideString();
+	*/
+
+	// Convert UTF-16 string(char16_t) to UTF-8 string(wstring)
+	wstring name = StrTool::u16str2wstr(nameText.ToExtString());
 
 	// Remove extra linefeed
 	name = StrTool::RemoveCharacter(name, L"\r");
@@ -249,7 +261,7 @@ wstring STEP_Reader::GetName(const TDF_Label& label) const
 	return name;
 }
 
-bool STEP_Reader::IsCopy(Component* comp)
+bool STEP_Reader::IsCopy(Component*& comp)
 {
 	const TopoDS_Shape& shape = comp->GetShape();
 	int shapeID = OCCUtil::GetID(shape);
@@ -278,7 +290,7 @@ bool STEP_Reader::IsEmpty(const TopoDS_Shape& shape) const
 	return false;
 }
 
-void STEP_Reader::AddColors(IShape* iShape) const
+void STEP_Reader::AddColors(IShape*& iShape) const
 {
 	if (!m_opt->Color())
 		return;
@@ -427,4 +439,216 @@ void STEP_Reader::Clear(void)
 {
 	m_idComponentMap.clear();
 	delete m_stepData;
+}
+
+// Read geometries related to GD&T with semantic and graphical PMI (Work in progress)
+void STEP_Reader::ReadGDT(Model*& model) const
+{
+	TDF_LabelSequence labels_datums, label_geoms, label_dims, label_dimTols;
+	m_gdtTool->GetDatumLabels(labels_datums);
+	m_gdtTool->GetDimensionLabels(label_dims);
+	m_gdtTool->GetGeomToleranceLabels(label_geoms);
+	
+	int datumSize = labels_datums.Length();
+	int dimSize = label_dims.Length();
+	int geomSize = label_geoms.Length();
+	
+	// Geometric Tolerances
+	for (int i = 1; i <= geomSize; ++i)
+	{
+		const TDF_Label& label_geom = label_geoms.Value(i);
+
+		Handle(XCAFDoc_GeomTolerance) aGeomAttr;
+		label_geom.FindAttribute(XCAFDoc_GeomTolerance::GetID(), aGeomAttr);
+
+		if (!aGeomAttr.IsNull())
+		{
+			Handle(XCAFDimTolObjects_GeomToleranceObject) aGeomObject = aGeomAttr->GetObject();
+			Handle(TCollection_HAsciiString) name = aGeomObject->GetPresentationName();
+			
+			XCAFDimTolObjects_GeomToleranceType type = aGeomObject->GetType();
+			XCAFDimTolObjects_GeomToleranceTypeValue typeVal = aGeomObject->GetTypeOfValue();
+			double val = aGeomObject->GetValue();
+			
+			XCAFDimTolObjects_GeomToleranceZoneModif zoneModif = aGeomObject->GetZoneModifier();
+			double zoneModifVal = aGeomObject->GetValueOfZoneModifier();
+
+			//Handle(TCollection_HAsciiString) ascHSemNameStr = aGeomObject->GetSemanticName();
+			//TCollection_AsciiString ascSemNameStr = ascHSemNameStr->String();
+
+			if (name)
+			{
+				TCollection_AsciiString ascNameStr = name->String();
+				wstring nameStr = StrTool::str2wstr(ascNameStr.ToCString());
+
+				// Get shape
+				TDF_LabelSequence fir, sec;
+				m_gdtTool->GetRefShapeLabel(label_geom, fir, sec);
+
+				GDT_Item* gdt = nullptr;
+				if (!(gdt = model->GetGDTByName(nameStr)))
+				{
+					gdt = new GDT_Item(nameStr);
+					model->AddGDT(gdt);
+				}
+
+				for (int j = 1; j <= fir.Length(); ++j)
+				{
+					const TDF_Label& label_shape = fir.Value(1);
+					const TopoDS_Shape& shape = m_shapeTool->GetShape(label_shape);
+
+					gdt->AddShape(shape);
+				}
+
+				for (int j = 1; j <= sec.Length(); ++j)
+				{
+					const TDF_Label& label_shape = sec.Value(1);
+					const TopoDS_Shape& shape = m_shapeTool->GetShape(label_shape);
+
+					gdt->AddShape(shape);
+				}
+
+				//const TopoDS_Shape& pptShape = aGeomObject->GetPresentation();
+				//gdt->AddShape(pptShape);
+			}
+		}
+	}
+
+	// Dimensional Tolerances
+	for (int i = 1; i <= dimSize; ++i)
+	{
+		const TDF_Label& label_dim = label_dims.Value(i);
+
+		Handle(XCAFDoc_Dimension) aDimAttr;
+		label_dim.FindAttribute(XCAFDoc_Dimension::GetID(), aDimAttr);
+
+		if (!aDimAttr.IsNull())
+		{
+			Handle(XCAFDimTolObjects_DimensionObject) aDimObject = aDimAttr->GetObject();	
+			Handle(TCollection_HAsciiString) name = aDimObject->GetPresentationName();
+
+			double val = aDimObject->GetValue();
+			double lowerTolVal = aDimObject->GetLowerTolValue();
+			double lowerBoundVal = aDimObject->GetLowerBound();
+			double upperTolVal = aDimObject->GetUpperTolValue();
+			double upperBound = aDimObject->GetUpperBound();
+			XCAFDimTolObjects_DimensionType dimType = aDimObject->GetType();
+			XCAFDimTolObjects_DimensionQualifier dimQualifier = aDimObject->GetQualifier();
+
+			Handle(TColStd_HArray1OfReal) vals = aDimObject->GetValues();
+			//int valSize = vals->Size();
+
+			//Handle(TCollection_HAsciiString) ascHSemNameStr = aDimObject->GetSemanticName();
+			//TCollection_AsciiString ascSemNameStr = ascHSemNameStr->String();
+
+			if (name)
+			{
+				TCollection_AsciiString ascNameStr = name->String();
+				wstring nameStr = StrTool::str2wstr(ascNameStr.ToCString());
+
+				// Get shape
+				TDF_LabelSequence fir, sec;
+				m_gdtTool->GetRefShapeLabel(label_dim, fir, sec);
+
+				GDT_Item* gdt = nullptr;
+				if (!(gdt = model->GetGDTByName(nameStr)))
+				{
+					gdt = new GDT_Item(nameStr);
+					model->AddGDT(gdt);
+				}
+
+				for (int j = 1; j <= fir.Length(); ++j)
+				{
+					const TDF_Label& label_shape = fir.Value(1);
+					const TopoDS_Shape& shape = m_shapeTool->GetShape(label_shape);
+
+					gdt->AddShape(shape);
+				}
+
+				for (int j = 1; j <= sec.Length(); ++j)
+				{
+					const TDF_Label& label_shape = sec.Value(1);
+					const TopoDS_Shape& shape = m_shapeTool->GetShape(label_shape);
+
+					gdt->AddShape(shape);
+				}
+
+				//const TopoDS_Shape& pptShape = aDimObject->GetPresentation();
+				//gdt->AddShape(pptShape);
+			}
+		}
+	}
+
+	// Datums
+	for (int i = 1; i <= datumSize; ++i)
+	{
+		const TDF_Label& label_datum = labels_datums.Value(i);
+
+		TDF_LabelSequence labels_views;
+		m_viewTool->GetViewLabelsForGDT(label_datum, labels_views);
+		int viewSize = labels_views.Length();
+
+		Handle(XCAFDoc_Datum) aDatumAttr;
+		label_datum.FindAttribute(XCAFDoc_Datum::GetID(), aDatumAttr);
+
+		if (!aDatumAttr.IsNull())
+		{
+			Handle(XCAFDimTolObjects_DatumObject) aDatumObject = aDatumAttr->GetObject();
+			Handle(TCollection_HAsciiString) name = aDatumObject->GetPresentationName();
+
+			const TopoDS_Shape& targetShape = aDatumObject->GetDatumTarget();
+			double targetLength = aDatumObject->GetDatumTargetLength();
+			double targetWidth = aDatumObject->GetDatumTargetWidth();
+			
+			int targetNum = aDatumObject->GetDatumTargetNumber();
+
+			XCAFDimTolObjects_DatumTargetType targetType = aDatumObject->GetDatumTargetType();
+			gp_Ax2 axis = aDatumObject->GetDatumTargetAxis();
+
+			//Handle(TCollection_HAsciiString) ascHSemNameStr = aDatumObject->GetSemanticName();
+			//TCollection_AsciiString ascSemNameStr = ascHSemNameStr->String();
+
+			if (name)
+			{
+				TCollection_AsciiString ascNameStr = name->String();
+				wstring nameStr = StrTool::str2wstr(ascNameStr.ToCString());
+
+				// Get shape
+				TDF_LabelSequence fir, sec;
+				m_gdtTool->GetRefShapeLabel(label_datum, fir, sec);
+
+				GDT_Item* gdt = nullptr;
+				if (!(gdt = model->GetGDTByName(nameStr)))
+				{
+					gdt = new GDT_Item(nameStr);
+					model->AddGDT(gdt);
+				}
+
+				for (int j = 1; j <= fir.Length(); ++j)
+				{
+					const TDF_Label& label_shape = fir.Value(1);
+					const TopoDS_Shape& shape = m_shapeTool->GetShape(label_shape);
+
+					gdt->AddShape(shape);
+				}
+
+				for (int j = 1; j <= sec.Length(); ++j)
+				{
+					const TDF_Label& label_shape = sec.Value(1);
+					const TopoDS_Shape& shape = m_shapeTool->GetShape(label_shape);
+
+					gdt->AddShape(shape);
+				}
+
+				//const TopoDS_Shape& pptShape = aDatumObject->GetPresentation();
+				//gdt->AddShape(pptShape);
+			}
+		}
+	}
+
+	// Disable GDT option when no GDT item exists
+	if (geomSize == 0
+		&& datumSize == 0
+		&& dimSize == 0)
+		m_opt->SetGDT(false);
 }

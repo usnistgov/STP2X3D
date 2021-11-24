@@ -3,6 +3,7 @@
 #include "Component.h"
 #include "IShape.h"
 #include "Mesh.h"
+#include "GDT_Item.h"
 
 X3D_Writer::X3D_Writer(S2X_Option* opt)
 	: m_opt(opt)
@@ -11,6 +12,9 @@ X3D_Writer::X3D_Writer(S2X_Option* opt)
 	m_diffuseColor.SetValues(0.55, 0.55, 0.6, Quantity_TOC_RGB);
 	m_emissiveColor.SetValues(1.0, 1.0, 1.0, Quantity_TOC_RGB);
 	m_specularColor.SetValues(0.2, 0.2, 0.2, Quantity_TOC_RGB);
+	m_gdtColor.SetValues(0.5, 0.1, 0.1, Quantity_TOC_RGB);
+	m_gdtColor2.SetValues(0.1, 0.1, 1, Quantity_TOC_RGB);
+
 	m_shininess = 0.9;
 	m_ambientIntensity = 1.0;
 	m_transparency = 1.0;
@@ -24,10 +28,10 @@ X3D_Writer::~X3D_Writer(void)
 	Clear();
 }
 
-void X3D_Writer::WriteX3D(Model* model)
+void X3D_Writer::WriteX3D(Model*& model)
 {
 	wstringstream ss_x3d;
-
+	
 	// Initial indent level
 	int level = 0;
 
@@ -39,6 +43,10 @@ void X3D_Writer::WriteX3D(Model* model)
 
 	// Write model
 	ss_x3d << WriteModel(model, level + 1);
+
+	// Write GDT geometries
+	if (m_opt->GDT())
+		ss_x3d << WriteGDT(model, level + 1);
 
 	// Close header
 	ss_x3d << CloseHeader();
@@ -84,7 +92,7 @@ wstring X3D_Writer::OpenHeader(void) const
 		ss_hd << "<?xml version='1.0' encoding='UTF-8'?>\n";
 	}
 
-	ss_hd << "<X3D>\n";
+	ss_hd << "<X3D version='3.3'>\n";
 	ss_hd << "<head>\n";
 	ss_hd << " <meta name='Generator' content='NIST STP2X3D Translator " << m_opt->Version() << "'/>\n";
 	ss_hd << "</head>\n";
@@ -110,7 +118,7 @@ wstring X3D_Writer::CloseHeader(void) const
 	return ss_hd.str();
 }
 
-wstring X3D_Writer::WriteViewpoint(Model* model, int level) const
+wstring X3D_Writer::WriteViewpoint(Model*& model, int level) const
 {
 	if (!m_opt->Html())
 		return L"";
@@ -176,7 +184,7 @@ wstring X3D_Writer::WriteViewpoint(Model* model, int level) const
 	return ss_vp.str();
 }
 
-wstring X3D_Writer::WriteModel(Model* model, int level)
+wstring X3D_Writer::WriteModel(Model*& model, int level)
 {
 	wstringstream ss_model;
 	
@@ -198,12 +206,19 @@ wstring X3D_Writer::WriteModel(Model* model, int level)
 			&& rootComp->GetIShapeSize() == 1
 			&& rootComp->GetIShapeAt(0)->IsSketchGeometry())
 		{
-			ss_model << WriteSketchGeometry(rootComp->GetIShapeAt(0), level + 1);
+			IShape* shape = rootComp->GetIShapeAt(0);
+			ss_model << WriteSketchGeometry(shape, level + 1);
 		}
 		else
 		{
 			ss_model << Indent(level + 1);
-			ss_model << "<Group DEF='" << rootComp->GetName() << "'>\n";
+			ss_model << "<Group";
+			
+			if (m_opt->SFA() 
+				&& m_opt->GDT())
+				ss_model << " id='geometry'"; 
+			
+			ss_model << " DEF='" << rootComp->GetName() << "'>\n";
 			CountIndent(level + 1);
 			
 			ss_model << WriteComponent(rootComp, level + 1);
@@ -222,7 +237,7 @@ wstring X3D_Writer::WriteModel(Model* model, int level)
 	return ss_model.str();
 }
 
-wstring X3D_Writer::WriteComponent(Component* comp, int level)
+wstring X3D_Writer::WriteComponent(Component*& comp, int level)
 {
 	wstringstream ss_comp;
 
@@ -252,14 +267,21 @@ wstring X3D_Writer::WriteComponent(Component* comp, int level)
 				&& subComp->GetOriginalComponent()->GetIShapeSize() == 1
 				&& subComp->GetOriginalComponent()->GetIShapeAt(0)->IsSketchGeometry())
 			{
-				ss_comp << WriteSketchGeometry(subComp->GetOriginalComponent()->GetIShapeAt(0), level + 2);
+				IShape* shape = subComp->GetOriginalComponent()->GetIShapeAt(0);
+				ss_comp << WriteSketchGeometry(shape, level + 2);
 			}
 			else
 			{
 				wstring orgCompName = subComp->GetOriginalComponent()->GetName();
 
 				ss_comp << Indent(level + 2);
-				ss_comp << "<Group USE='" << orgCompName << "'></Group>\n";
+				ss_comp << "<Group USE='" << orgCompName;
+				
+				if (m_opt->SFA())
+					ss_comp << "'></Group>\n";
+				else
+					ss_comp << "'/>\n";
+
 				CountIndent(level + 2);
 			}
 		}
@@ -269,7 +291,8 @@ wstring X3D_Writer::WriteComponent(Component* comp, int level)
 				&& subComp->GetIShapeSize() == 1
 				&& subComp->GetIShapeAt(0)->IsSketchGeometry())
 			{
-				ss_comp << WriteSketchGeometry(subComp->GetIShapeAt(0), level + 2);
+				IShape* shape = subComp->GetIShapeAt(0);
+				ss_comp << WriteSketchGeometry(shape, level + 2);
 			}
 			else
 			{
@@ -341,7 +364,7 @@ wstring X3D_Writer::WriteTransformAttributes(const gp_Trsf& trsf) const
 	return ss_trsf.str();
 }
 
-wstring X3D_Writer::WriteShape(IShape* iShape, int level)
+wstring X3D_Writer::WriteShape(IShape*& iShape, int level)
 {
 	wstringstream ss_shape;
 		
@@ -399,7 +422,7 @@ wstring X3D_Writer::WriteShape(IShape* iShape, int level)
 	return ss_shape.str();
 }
 
-wstring X3D_Writer::WriteIndexedFaceSet(IShape* iShape, int level)
+wstring X3D_Writer::WriteIndexedFaceSet(IShape*& iShape, int level)
 {
 	wstringstream ss_ifs;
 
@@ -481,7 +504,7 @@ wstring X3D_Writer::WriteIndexedFaceSet(IShape* iShape, int level)
 	return ss_ifs.str();
 }
 
-wstring X3D_Writer::WriteIndexedLineSet(IShape* iShape, int level)
+wstring X3D_Writer::WriteIndexedLineSet(IShape*& iShape, int level)
 {
 	wstringstream ss_ils;
 
@@ -547,21 +570,21 @@ wstring X3D_Writer::WriteIndexedLineSet(IShape* iShape, int level)
 	return ss_ils.str();
 }
 
-wstring X3D_Writer::WriteAppearance(IShape* iShape, const Quantity_Color& diffuseColor, bool isDiffuseOn,
+wstring X3D_Writer::WriteAppearance(IShape*& iShape, const Quantity_Color& diffuseColor, bool isDiffuseOn,
 													const Quantity_Color& emissiveColor, bool isEmissiveOn,
 													const Quantity_Color& specularColor, bool isSpecularOn,
-													const double shininess, bool isShininessOn,
-													const double ambientIntensity, bool isAmbientIntensityOn,
-													const double transparency, bool isTransparencyOn)
+													double& shininess, bool isShininessOn,
+													double& ambientIntensity, bool isAmbientIntensityOn,
+													double& transparency, bool isTransparencyOn)
 {
 	wstringstream ss_app;
 
 	int appID = 0;
 
-	if (!m_opt->SFA()
-		|| (m_opt->SFA() 
-			&& iShape->IsFaceSet()))
-	{
+	//if (!m_opt->SFA()
+	//	|| (m_opt->SFA() 
+	//		&& iShape->IsFaceSet()))
+	//{
 		if (CheckSameAppearance(diffuseColor, isDiffuseOn,
 			emissiveColor, isEmissiveOn,
 			specularColor, isSpecularOn,
@@ -571,22 +594,24 @@ wstring X3D_Writer::WriteAppearance(IShape* iShape, const Quantity_Color& diffus
 			appID))
 		{
 			ss_app << "<Appearance USE='app" << to_wstring(appID) << "'></Appearance>\n";
+
 			return ss_app.str();
 		}
-	}
+	//}
 
 	// Write Appearance node
 	ss_app << "<Appearance";
 
-	if (!m_opt->SFA()
-		|| (m_opt->SFA() 
-			&& iShape->IsFaceSet()))
+	//if (!m_opt->SFA()
+	//	|| (m_opt->SFA() 
+	//		&& iShape->IsFaceSet()))
 		ss_app << " DEF='app" << to_wstring(appID) << "'";
 	
 	ss_app << "><Material";
 
 	if (m_opt->SFA()
-		&& iShape->IsFaceSet())
+		//&& iShape->IsFaceSet()
+		)
 		ss_app << " id='mat" << to_wstring(appID) << "'";
 
 	if (isDiffuseOn)
@@ -636,7 +661,7 @@ wstring X3D_Writer::WriteAppearance(IShape* iShape, const Quantity_Color& diffus
 	return ss_app.str();
 }
 
-wstring X3D_Writer::WriteCoordinate(IShape* iShape, bool isBoundaryEdges) const
+wstring X3D_Writer::WriteCoordinate(IShape*& iShape, bool isBoundaryEdges) const
 {
 	wstringstream ss_coords;
 
@@ -669,12 +694,15 @@ wstring X3D_Writer::WriteCoordinate(IShape* iShape, bool isBoundaryEdges) const
 		ss_coords << " USE='c" << to_wstring(iShape->GetGlobalIndex());
 	}
 
-	ss_coords << "'></Coordinate>\n";
+	if (m_opt->SFA())
+		ss_coords << "'></Coordinate>\n";
+	else
+		ss_coords << "'/>\n";
 
 	return CleanString(ss_coords.str());
 }
 
-wstring X3D_Writer::WriteCoordinateIndex(IShape* iShape, bool faceMesh) const
+wstring X3D_Writer::WriteCoordinateIndex(IShape*& iShape, bool faceMesh) const
 {
 	wstringstream ss_coordIndex;
 	ss_coordIndex << " coordIndex='";
@@ -699,14 +727,18 @@ wstring X3D_Writer::WriteCoordinateIndex(IShape* iShape, bool faceMesh) const
 			}
 		}
 		else // Edge mesh (Boundary edges, sketch geometry)
-		{
+		{		
 			// Traverse edges
 			for (int j = 0; j < mesh->GetEdgeIndexSize(); ++j)
 			{
 				const vector<int>& edgeIndex = mesh->GetEdgeIndexAt(j);
 
 				for (size_t k = 0; k < edgeIndex.size(); ++k)
-					ss_coordIndex << to_wstring(edgeIndex[k] - 1 + prevCoordCount) << " ";
+				{
+					int index = edgeIndex[k] - 1 + prevCoordCount;
+					ss_coordIndex << to_wstring(index) << " ";
+					//cout << "			" << index << endl;
+				}
 
 				ss_coordIndex << "-1 ";
 			}
@@ -720,7 +752,7 @@ wstring X3D_Writer::WriteCoordinateIndex(IShape* iShape, bool faceMesh) const
 	return CleanString(ss_coordIndex.str());
 }
 
-wstring X3D_Writer::WriteNormalIndex(IShape* iShape) const
+wstring X3D_Writer::WriteNormalIndex(IShape*& iShape) const
 {
 	wstringstream ss_normalIndex;	
 	ss_normalIndex << " normalIndex='";
@@ -750,7 +782,7 @@ wstring X3D_Writer::WriteNormalIndex(IShape* iShape) const
 	return CleanString(ss_normalIndex.str());
 }
 
-wstring X3D_Writer::WriteColor(IShape* iShape) const
+wstring X3D_Writer::WriteColor(IShape*& iShape) const
 {
 	wstringstream ss_colors;
 
@@ -790,7 +822,7 @@ wstring X3D_Writer::WriteColor(IShape* iShape) const
 	return CleanString(ss_colors.str());
 }
 
-wstring X3D_Writer::WriteNormal(IShape* iShape) const
+wstring X3D_Writer::WriteNormal(IShape*& iShape) const
 {
 	wstringstream ss_normals;
 
@@ -815,7 +847,7 @@ wstring X3D_Writer::WriteNormal(IShape* iShape) const
 	return CleanString(ss_normals.str());
 }
 
-wstring X3D_Writer::Indent(int level) const
+const wstring X3D_Writer::Indent(int level) const
 {
 	wstring indent;
 	wstring unit = L" ";	// space or tab
@@ -826,7 +858,7 @@ wstring X3D_Writer::Indent(int level) const
 	return indent;
 }
 
-wstring X3D_Writer::CleanString(wstring str) const
+const wstring X3D_Writer::CleanString(wstring str) const
 {
 	wstring from = L" '";
 	wstring to = L"'";
@@ -840,9 +872,9 @@ wstring X3D_Writer::CleanString(wstring str) const
 bool X3D_Writer::CheckSameAppearance(const Quantity_Color& diffuseColor, bool isDiffuseOn,
 									 const Quantity_Color& emissiveColor, bool isEmissiveOn,
 									 const Quantity_Color& specularColor, bool isSpecularOn,
-									 const double shininess, bool isShininessOn,
-									 const double ambientIntensity, bool isAmbientIntensityOn,
-									 const double transparency, bool isTransparencyOn,
+									 double& shininess, bool isShininessOn,
+									 double& ambientIntensity, bool isAmbientIntensityOn,
+									 double& transparency, bool isTransparencyOn,
 									 int& appID)
 {
 	// Search for the same appearance
@@ -860,13 +892,13 @@ bool X3D_Writer::CheckSameAppearance(const Quantity_Color& diffuseColor, bool is
 			&& ((isSpecularOn && app.specularColor.IsEqual(specularColor))
 				|| !isSpecularOn) && 
 			app.isShininessOn == isShininessOn
-			&& ((isShininessOn && app.shininess == shininess)
+			&& ((isShininessOn && abs(app.shininess - shininess) <= Precision::Confusion())
 				|| !isShininessOn) && 
 			app.isAmbientIntensityOn == isAmbientIntensityOn
-			&& ((isAmbientIntensityOn && app.ambientIntensity == ambientIntensity)
+			&& ((isAmbientIntensityOn && abs(app.ambientIntensity - ambientIntensity) <= Precision::Confusion())
 				|| !isAmbientIntensityOn) &&
 			app.isTransparencyOn == isTransparencyOn
-			&& ((isTransparencyOn && app.transparency == transparency)
+			&& ((isTransparencyOn && abs(app.transparency - transparency) <= Precision::Confusion())
 				|| !isTransparencyOn))
 		{
 			appID = i; // Save the order
@@ -896,7 +928,7 @@ bool X3D_Writer::CheckSameAppearance(const Quantity_Color& diffuseColor, bool is
 	return false;
 }
 
-wstring X3D_Writer::WriteSketchGeometry(IShape* iShape, int level) const
+wstring X3D_Writer::WriteSketchGeometry(IShape*& iShape, int level) const
 {
 	wstringstream ss_sg;
 
@@ -967,13 +999,141 @@ void X3D_Writer::PrintIndentCount(void)
 {
 	printf("Indent Count\n");
 
-	for (map<int, int>::iterator it = m_indentCountMap.begin(); it != m_indentCountMap.end(); ++it)
+	for (unordered_map<int, int>::iterator it = m_indentCountMap.begin(); it != m_indentCountMap.end(); ++it)
 		printf("indent %d - %d\n", it->first, it->second);
 }
 
 void X3D_Writer::PrintMaterialCount(void) const
 {
 	printf("Number of Materials: %d\n", (int)m_appearances.size());
+}
+
+wstring X3D_Writer::WriteGDT(Model*& model, int level)
+{
+	wstringstream ss_gdt;
+
+	ss_gdt << Indent(level);
+	ss_gdt << "<Group";
+
+	if (m_opt->SFA())
+		ss_gdt << " id='highlight'";
+	
+	ss_gdt << " DEF='GD&T'>\n";
+
+	for (int i = 0; i < model->GetGDTSize(); ++i)
+	{
+		GDT_Item* gdt = model->GetGDTAt(i);
+
+		ss_gdt << Indent(level + 1);
+		ss_gdt << "<Group";
+
+		if (m_opt->SFA())
+			ss_gdt << " id='" << gdt->GetName().c_str() << "'";
+
+		ss_gdt << " DEF='" << gdt->GetName().c_str() << "'";
+		ss_gdt << ">\n";
+
+		TopoDS_Shape shape;
+		IShape* faceShape = new IShape(shape);
+		IShape* edgeShape = new IShape(shape);
+
+		for (int j = 0; j < gdt->GetMeshSize(); ++j)
+		{
+			Mesh* mesh = gdt->GetMeshAt(j);
+
+			if (mesh->GetFaceIndexSize() > 0)
+				faceShape->AddMesh(mesh);
+			else
+				edgeShape->AddMesh(mesh);
+		}
+
+		// face shape
+		if (faceShape->GetMeshSize() > 0)
+		{
+			ss_gdt << Indent(level + 2);
+			ss_gdt << "<Shape>\n";
+
+			// Write Appearance node
+			ss_gdt << Indent(level + 3);
+
+			ss_gdt << WriteAppearance(faceShape, m_gdtColor, true,
+				m_emissiveColor, false,
+				m_specularColor, true,
+				m_shininess, true,
+				m_ambientIntensity, false,
+				m_transparency, false);
+
+			ss_gdt << Indent(level + 3);
+
+			ss_gdt << "<IndexedFaceSet";
+
+			if (!m_opt->Normal())
+				ss_gdt << " creaseAngle='" << NumTool::DoubleToWString(m_creaseAngle) << "'";
+
+			ss_gdt << " solid='false'";
+
+			ss_gdt << WriteCoordinateIndex(faceShape, true);
+
+			if (m_opt->Normal())
+				ss_gdt << WriteNormalIndex(faceShape);
+
+			ss_gdt << ">\n";
+
+			// Write coordinates
+			ss_gdt << Indent(level + 4);
+			ss_gdt << WriteCoordinate(faceShape, false);
+
+			// Close IndexedFaceSet
+			ss_gdt << Indent(level + 3);
+			ss_gdt << "</IndexedFaceSet>\n";
+
+			ss_gdt << Indent(level + 2);
+			ss_gdt << "</Shape>\n";
+		}
+
+		// edge shape
+		if (edgeShape->GetMeshSize() > 0)
+		{
+			ss_gdt << Indent(level + 2);
+			ss_gdt << "<Shape>\n";
+
+			// Write Appearance node
+			ss_gdt << Indent(level + 3);
+
+			ss_gdt << WriteAppearance(edgeShape, m_gdtColor, false,
+				m_gdtColor2, true,
+				m_specularColor, false,
+				m_shininess, false,
+				m_ambientIntensity, false,
+				m_transparency, false);
+
+			ss_gdt << Indent(level + 3);
+			ss_gdt << "<IndexedLineSet";
+
+			ss_gdt << WriteCoordinateIndex(edgeShape, false);
+
+			ss_gdt << ">\n";
+
+			// Write coordinates
+			ss_gdt << Indent(level + 4);
+			ss_gdt << WriteCoordinate(edgeShape, false);
+
+			// Close IndexedFaceSet
+			ss_gdt << Indent(level + 3);
+			ss_gdt << "</IndexedLineSet>\n";
+
+			ss_gdt << Indent(level + 2);
+			ss_gdt << "</Shape>\n";
+		}
+
+		ss_gdt << Indent(level + 1);
+		ss_gdt << "</Group>\n";
+	}
+
+	ss_gdt << Indent(level);
+	ss_gdt << "</Group>\n";
+
+	return ss_gdt.str();
 }
 
 void X3D_Writer::Clear(void)

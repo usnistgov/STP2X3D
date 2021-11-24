@@ -10,19 +10,22 @@ public:
 
 	static void PrintBoundingBox(Model* model, S2X_Option* opt)
 	{
-		Bnd_Box bndBox = model->GetBoundingBox(opt->Sketch());
-		assert(!bndBox.IsVoid());
-
+		Bnd_Box bndBox;
+		
 		// Compute Bounding box for the top-level shape
-		if ((model->GetShapeType() != Hybrid_Geom
-			|| (model->GetShapeType() == Hybrid_Geom
+		if ((model->GetShapeType() != ShapeType::Hybrid_Geom
+			|| (model->GetShapeType() == ShapeType::Hybrid_Geom
 				&& opt->Sketch()))
 			&& model->GetRootComponentSize() == 1)
 		{
-			TopoDS_Shape shape = model->GetRootComponentAt(0)->GetShape();
+			const TopoDS_Shape& shape = model->GetRootComponentAt(0)->GetShape();
 			bndBox = OCCUtil::ComputeBoundingBox(shape);
 			bndBox = bndBox.FinitePart();
 		}
+		else
+			bndBox = model->GetBoundingBox(opt->Sketch());
+		
+		assert(!bndBox.IsVoid());
 
 		// Bounding boxes are enlarged by the given tolerance 
 		// double tol = 2.5 / opt->Quality();	// before v1.02 (linear deflection for tessellation)
@@ -45,7 +48,7 @@ public:
 		
 		int shapeCount = 0;
 
-		for (auto comp : comps)
+		for (const auto& comp : comps)
 			shapeCount += comp->GetIShapeSize();
 
 		comps.clear();
@@ -60,7 +63,7 @@ public:
 		
 		int sketchCount = 0;
 
-		for (auto comp : comps)
+		for (const auto& comp : comps)
 		{
 			for (int i = 0; i < comp->GetIShapeSize(); ++i)
 			{

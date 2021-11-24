@@ -6,7 +6,7 @@ class NumTool
 {
 public:
 
-	static string DoubleToString(double val)
+	static const string DoubleToString(double val)
 	{
 		// Round up
 		double digit = 1.e4; // e4: 4th decimal digit, e-4: 4th digit
@@ -34,7 +34,7 @@ public:
 		return str;
 	}
 
-	static wstring DoubleToWString(double val)
+	static const wstring DoubleToWString(double val)
 	{
 		string str = DoubleToString(val);
 		wstring wstr = StrTool::str2wstr(str);
@@ -42,7 +42,7 @@ public:
 		return wstr;
 	}
 
-	static double RoundUp(double val, const double digit)
+	static const double RoundUp(double val, const double digit)
 	{
 		double val_ru = floor(abs(val) * digit + 0.5);
 		val_ru = val_ru / digit;

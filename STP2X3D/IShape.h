@@ -15,18 +15,18 @@ public:
 	void SetTessellated(bool isTessellated) { m_isTessellated = isTessellated; }
 
 	void AddColor(const TopoDS_Shape& shape, const Quantity_ColorRGBA& color);
-	void AddMesh(Mesh* mesh) { m_meshList.push_back(mesh); }
+	void AddMesh(Mesh*& mesh) { m_meshList.push_back(mesh); }
 
-	wstring GetName(void) const { return m_name; }
+	const wstring& GetName(void) const { return m_name; }
 	Component* GetComponent(void) const { return m_component; }
-	TopoDS_Shape GetShape(void) const { return m_shape; }
-	Quantity_ColorRGBA GetColor(const TopoDS_Shape& shape) const;
-	Quantity_ColorRGBA GetColor(void) const { return m_colorList.at(0); }
+	const TopoDS_Shape& GetShape(void) const { return m_shape; }
+	const Quantity_ColorRGBA& GetColor(const TopoDS_Shape& shape) const;
+	const Quantity_ColorRGBA& GetColor(void) const { return m_colorList.at(0); }
 
 	Mesh* GetMeshAt(int index) const { return m_meshList[index]; }
-	int GetGlobalIndex(void) const { return m_globalIndex; }
+	const int GetGlobalIndex(void) const { return m_globalIndex; }
 
-	int GetMeshSize(void) const { return (int)m_meshList.size(); }
+	const int GetMeshSize(void) const { return (int)m_meshList.size(); }
 
 	bool IsMultiColored(void) const { return m_isMultiColored; }
 	bool IsMultiTransparent(void) const { return m_isMultiTransparent; }
@@ -61,5 +61,5 @@ private:
 	
 	vector<Mesh*> m_meshList;
 	vector<Quantity_ColorRGBA> m_colorList;
-	map<int, Quantity_ColorRGBA> m_shapeIDcolorMap;
+	unordered_map<int, Quantity_ColorRGBA> m_shapeIDcolorMap;
 };

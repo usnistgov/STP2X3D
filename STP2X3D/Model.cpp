@@ -2,6 +2,7 @@
 #include "Model.h"
 #include "Component.h"
 #include "IShape.h"
+#include "GDT_Item.h"
 
 Model::Model(void)
 {
@@ -14,27 +15,27 @@ Model::~Model(void)
 
 void Model::GetAllComponents(vector<Component*>& comps) const
 {
-	for (auto rootComp : m_rootComponents)
+	for (const auto& rootComp : m_rootComponents)
 	{
 		comps.push_back(rootComp);
 		rootComp->GetAllComponents(comps);
 	}
 }
 
-Bnd_Box Model::GetBoundingBox(bool sketch) const
+const Bnd_Box Model::GetBoundingBox(bool sketch) const
 {
 	Bnd_Box bndBox;
 
-	for (auto rootComp : m_rootComponents)
+	for (const auto& rootComp : m_rootComponents)
 	{
-		Bnd_Box subBndBox = rootComp->GetBoundingBox(sketch);
+		const Bnd_Box& subBndBox = rootComp->GetBoundingBox(sketch);
 		bndBox.Add(subBndBox);
 	}
 	
 	return bndBox;
 }
 
-ShapeType Model::GetShapeType(void) const
+const ShapeType Model::GetShapeType(void) const
 {
 	vector<Component*> comps;
 	GetAllComponents(comps);
@@ -42,7 +43,7 @@ ShapeType Model::GetShapeType(void) const
 	int shapeCount = 0;
 	int sketchCount = 0;
 
-	ShapeType shapeType = Face_Geom;
+	ShapeType shapeType = ShapeType::Face_Geom;
 
 	for (const auto& comp : comps)
 	{
@@ -61,9 +62,9 @@ ShapeType Model::GetShapeType(void) const
 	if (sketchCount > 0)
 	{
 		if (shapeCount == sketchCount)
-			shapeType = Sketch_Geom;
+			shapeType = ShapeType::Sketch_Geom;
 		else
-			shapeType = Hybrid_Geom;
+			shapeType = ShapeType::Hybrid_Geom;
 	}
 
 	return shapeType;
@@ -73,7 +74,7 @@ bool Model::IsEmpty(void) const
 {
 	int size = 0;
 
-	for (auto rootComp : m_rootComponents)
+	for (const auto& rootComp : m_rootComponents)
 	{
 		if (rootComp->IsEmpty())
 			size++;
@@ -90,6 +91,18 @@ void Model::Update(void)
 	Clean();
 	UpdateNames();
 }
+
+GDT_Item* Model::GetGDTByName(wstring name) const
+{
+	for (const auto& gdt : m_gdts)
+	{
+		if (name == gdt->GetName())
+			return gdt;
+	}
+		
+	return nullptr;
+}
+
 
 void Model::Clean(void)
 {
@@ -264,4 +277,9 @@ void Model::Clear(void)
 		delete rootComp;
 
 	m_rootComponents.clear();
+
+	for (auto gdt : m_gdts)
+		delete gdt;
+
+	m_gdts.clear();
 }

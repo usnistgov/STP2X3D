@@ -12,25 +12,25 @@ public:
 	void SetUniqueName(const wstring& name);
 	void SetTransformation(const gp_Trsf& trsf) { m_trsf = trsf; }
 	void SetParentComponent(Component* parentComp) { m_parentComponent = parentComp; }
-	void SetOriginalComponent(Component* originalComp);
+	void SetOriginalComponent(Component*& originalComp);
 
-	void AddSubComponent(Component* subComp);
-	void AddIShape(IShape* iShape);
+	void AddSubComponent(Component*& subComp);
+	void AddIShape(IShape*& iShape);
 
-	wstring GetName(void) const { return m_name; }
-	wstring GetUniqueName(void) const { return m_uniqueName; }
-	gp_Trsf GetTransformation(void) const { return m_trsf; }
-	TopoDS_Shape GetShape(void) const { return m_shape; }
+	const wstring& GetName(void) const { return m_name; }
+	const wstring& GetUniqueName(void) const { return m_uniqueName; }
+	const gp_Trsf& GetTransformation(void) const { return m_trsf; }
+	const TopoDS_Shape& GetShape(void) const { return m_shape; }
 	Component* GetParentComponent(void) const { return m_parentComponent; }
 	Component* GetOriginalComponent(void) const { return m_originalComponent; }
 	Component* GetSubComponentAt(int index) const { return m_subComponents[index]; }
 	IShape* GetIShapeAt(int index) const { return m_iShapes[index]; }
 	
-	int GetSubComponentSize(void) const { return (int)m_subComponents.size(); }
-	int GetIShapeSize(void) const { return (int)m_iShapes.size(); }
+	const int GetSubComponentSize(void) const { return (int)m_subComponents.size(); }
+	const int GetIShapeSize(void) const { return (int)m_iShapes.size(); }
 
 	void GetAllComponents(vector<Component*>& comps) const;
-	Bnd_Box GetBoundingBox(bool sketch) const;
+	const Bnd_Box GetBoundingBox(bool sketch) const;
 
 	bool HasUniqueName(void) const { return m_hasUniqueName; }
 	bool IsCopy(void) const;
