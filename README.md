@@ -2,8 +2,8 @@
 The NIST [STEP to X3D Translator](https://www.nist.gov/services-resources/software/step-x3d-translator) is an open-source software that translates a STEP (ISO 10303) Part 21 file (.stp or .step) to an X3D (ISO/IEC 19776) file (.x3d) or [X3DOM](https://www.x3dom.org/) file (.html). Developed at the National Institute of Standards and Technology (NIST), the software is based on the [Open CASCADE STEP Processor](https://dev.opencascade.org/doc/overview/html/occt_user_guides__step.html) and written in C++.  
 
 ## Prerequisites
-- [Open CASCADE Technology](https://www.opencascade.com/content/latest-release) (OCCT) 7.5.0 or higher
-  - You must rebuild the OCCT solution to regenerate DLL files.
+- [Open CASCADE Technology](https://www.opencascade.com/content/latest-release) (OCCT) 7.6.0 or higher
+  - You must [rebuild the OCCT solution](https://dev.opencascade.org/doc/occt-7.6.0/overview/html/build_upgrade__building_occt.html) to regenerate DLL files.
     - vc14 or higher (x64) should be selected.
   - The complete set of DLL files required for STP2X3D to run is as follows.
     - OCCT related: freetype.dll, TKBO.dll, TKBRep.dll, TKCAF.dll, TKCDF.dll, TKernel.dll, TKG2d.dll, TKG3d.dll, TKGeomAlgo.dll, TKGeomBase.dll, TKHLR.dll, TKLCAF.dll. TKMath.dll, TKMesh.dll, TKPrim.dll, TKService.dll, TKShHealing.dll, TKSTEP.dll, TKSTEP209.dll, TKSTEPAttr.dll, TKSTEPBase.dll, TKTopAlgo.dll, TKV3d.dll, TKVCAF.dll, TKXCAF.dll, TKXDESTEP.dll, TKXSBase.dll
@@ -34,18 +34,22 @@ The NIST [STEP to X3D Translator](https://www.nist.gov/services-resources/softwa
 ## Usage
 - NIST STP2X3D is a command line software. Please check out the [Usage guide](USAGE.md).
 
+## Work In Progress
+- Setting of adaptive tessellation parameters per each body.
+- Translation of geometries (faces, edges) linked to GD&T items.
+
 ## Contact Information
 - Soonjo Kwon, soonjo.kwon@kumoh.ac.kr
 - William Z. Bernstein, william.bernstein@nist.gov
 
-## Used by
+## Used By
 - [NIST STEP File Analyzer and Viewer](https://www.nist.gov/services-resources/software/step-file-analyzer-and-viewer)
 
 ## Reference
 - R. R. Lipman, S. Kwon, 2021, [**STEP File Analyzer and Viewer User Guide (Update 7)**](https://nvlpubs.nist.gov/nistpubs/ams/NIST.AMS.200-12.pdf), *NIST Advanced Manufacturing Series*, 200-12.
 
 ## Version
-1.02
+1.10
 
 ## Disclaimers
 [NIST Disclaimer](https://www.nist.gov/disclaimer)
