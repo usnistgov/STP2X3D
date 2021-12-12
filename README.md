@@ -40,7 +40,7 @@ The NIST [STEP to X3D Translator](https://www.nist.gov/services-resources/softwa
 
 ## Contact Information
 - Soonjo Kwon, soonjo.kwon@kumoh.ac.kr
-- William Z. Bernstein, william.bernstein@nist.gov
+- William Z. Bernstein, william.bernstein@afresearchlab.com
 
 ## Used By
 - [NIST STEP File Analyzer and Viewer](https://www.nist.gov/services-resources/software/step-file-analyzer-and-viewer)
