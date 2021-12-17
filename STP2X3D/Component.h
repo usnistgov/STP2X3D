@@ -23,8 +23,8 @@ public:
 	const TopoDS_Shape& GetShape(void) const { return m_shape; }
 	Component* GetParentComponent(void) const { return m_parentComponent; }
 	Component* GetOriginalComponent(void) const { return m_originalComponent; }
-	Component* GetSubComponentAt(int index) const { return m_subComponents[index]; }
-	IShape* GetIShapeAt(int index) const { return m_iShapes[index]; }
+	Component* GetSubComponentAt(const int index) const { return m_subComponents[index]; }
+	IShape* GetIShapeAt(const int index) const { return m_iShapes[index]; }
 	
 	const int GetSubComponentSize(void) const { return (int)m_subComponents.size(); }
 	const int GetIShapeSize(void) const { return (int)m_iShapes.size(); }

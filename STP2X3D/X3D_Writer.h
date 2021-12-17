@@ -91,5 +91,5 @@ private:
 	vector<Appearance> m_appearances;
 	
 	// SFA-specific variables
-	unordered_map<int, int> m_indentCountMap;
+	map<int, int> m_indentCountMap;
 };

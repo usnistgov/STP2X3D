@@ -22,18 +22,23 @@ bool STEP_Reader::ReadSTEP(Model* model)
 {
 	IFSelect_ReturnStatus status;
 	wstring filePath = m_opt->Input();
+	OSD::SetSignal(false);
 
 	try
 	{
 		// Read a STEP file
 		STEPCAFControl_Reader cafReader;
 		cafReader.SetNameMode(true);
-		cafReader.SetColorMode(true);
-		cafReader.SetGDTMode(true);
+		
+		if (m_opt->Color())
+			cafReader.SetColorMode(true);
+		
+		if (m_opt->GDT())
+			cafReader.SetGDTMode(true);
 
 		TCollection_AsciiString aFileName((const wchar_t*)filePath.c_str());
 		status = cafReader.ReadFile(aFileName.ToCString());
-		//status = cafReader.ReadFile(filePath.c_str());
+		//cafReader.Reader().PrintCheckLoad(false, (IFSelect_PrintCount)0);
 
 		if (!CheckReturnStatus(status))
 			return false;
@@ -466,6 +471,9 @@ void STEP_Reader::ReadGDT(Model*& model) const
 			Handle(XCAFDimTolObjects_GeomToleranceObject) aGeomObject = aGeomAttr->GetObject();
 			Handle(TCollection_HAsciiString) name = aGeomObject->GetPresentationName();
 			
+			if (!name)
+				name = aGeomObject->GetSemanticName();
+
 			XCAFDimTolObjects_GeomToleranceType type = aGeomObject->GetType();
 			XCAFDimTolObjects_GeomToleranceTypeValue typeVal = aGeomObject->GetTypeOfValue();
 			double val = aGeomObject->GetValue();
@@ -526,6 +534,9 @@ void STEP_Reader::ReadGDT(Model*& model) const
 		{
 			Handle(XCAFDimTolObjects_DimensionObject) aDimObject = aDimAttr->GetObject();	
 			Handle(TCollection_HAsciiString) name = aDimObject->GetPresentationName();
+
+			if (!name)
+				name = aDimObject->GetSemanticName();
 
 			double val = aDimObject->GetValue();
 			double lowerTolVal = aDimObject->GetLowerTolValue();
@@ -595,6 +606,9 @@ void STEP_Reader::ReadGDT(Model*& model) const
 		{
 			Handle(XCAFDimTolObjects_DatumObject) aDatumObject = aDatumAttr->GetObject();
 			Handle(TCollection_HAsciiString) name = aDatumObject->GetPresentationName();
+
+			if (!name)
+				name = aDatumObject->GetSemanticName();
 
 			const TopoDS_Shape& targetShape = aDatumObject->GetDatumTarget();
 			double targetLength = aDatumObject->GetDatumTargetLength();

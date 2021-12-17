@@ -8,8 +8,8 @@ public:
 	Mesh(const TopoDS_Shape& shape);
 	~Mesh(void);
 
-	void AddFaceIndex(const int v1, const int v2, const int v3);
-	void AddNormalIndex(const int v1, const int v2, const int v3);
+	void AddFaceIndex(int v1, int v2, int v3);
+	void AddNormalIndex(int v1, int v2, int v3);
 	void AddEdgeIndex(Index edgeIndex);
 	void AddCoordinate(const gp_XYZ& coord) { m_coordinates.push_back(coord); }
 	void AddNormal(const gp_XYZ& norm) { m_normals.push_back(norm); }

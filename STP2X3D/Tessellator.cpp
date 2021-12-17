@@ -8,11 +8,11 @@
 Tessellator::Tessellator(S2X_Option* opt)
 	: m_opt(opt)
 {
-	//double angDeflection_max = 0.8, angDeflection_min = 0.2, angDeflection_gap = (angDeflection_max - angDeflection_min) / 10;
-	//m_angDeflection = angDeflection_max - (m_opt->Quality() * angDeflection_gap);
+	double angDeflection_max = 0.8, angDeflection_min = 0.2, angDeflection_gap = (angDeflection_max - angDeflection_min) / 10;
+	m_angDeflection = angDeflection_max - (m_opt->Quality() * angDeflection_gap);
 	
-	m_linDeflection = 2.5 / m_opt->Quality();
-	m_angDeflection = 5.0 / m_opt->Quality();
+	//m_linDeflection = 2.5 / m_opt->Quality();
+	//m_angDeflection = 5.0 / m_opt->Quality();
 
 	m_isRelative = false; // If TRUE, linear deflection is automatically set.
 }
@@ -41,12 +41,12 @@ void Tessellator::TessellateModel(Model*& model) const
 			const TopoDS_Shape& shape = rootComp->GetShape();
 
 			// Get the relative linear deflection for a shape
-			//m_linDeflection = OCCUtil::GetDeflection(shape);
+			double linDeflection = OCCUtil::GetDeflection(shape);
 
 			try
 			{
 				// Tessellate and add mesh data of a shape
-				OCCUtil::TessellateShape(shape, m_linDeflection, m_isRelative, m_angDeflection, true);
+				OCCUtil::TessellateShape(shape, linDeflection, m_isRelative, m_angDeflection, true);
 			}
 			catch (...)
 			{
@@ -86,10 +86,10 @@ void Tessellator::TessellateShape(IShape*& iShape) const
 	try
 	{
 		// Get the relative linear deflection for a shape
-		// m_linDeflection = OCCUtil::GetDeflection(shape);
+		double linDeflection = OCCUtil::GetDeflection(shape);
 		
 		// Tessellate and add mesh data of a shape
-		if (OCCUtil::TessellateShape(shape, m_linDeflection, m_isRelative, m_angDeflection, true))
+		if (OCCUtil::TessellateShape(shape, linDeflection, m_isRelative, m_angDeflection, true))
 		{
 			if (iShape->IsFaceSet())
 				AddMeshForFaceSet(iShape);
@@ -302,9 +302,9 @@ void Tessellator::TessellateGDT(Model*& model) const
 			}
 			else // Tessellate and add the edge mesh
 			{
-				//m_linDeflection = OCCUtil::GetDeflection(shape);
+				double linDeflection = OCCUtil::GetDeflection(shape);
 
-				if (!OCCUtil::TessellateShape(shape, m_linDeflection, m_isRelative, m_angDeflection, true))
+				if (!OCCUtil::TessellateShape(shape, linDeflection, m_isRelative, m_angDeflection, true))
 					return;
 
 				TopExp_Explorer ExpEdge;

@@ -86,3 +86,5 @@
 
 #include <Prs3d.hxx>
 #include <Prs3d_Drawer.hxx>
+
+#include <OSD.hxx>

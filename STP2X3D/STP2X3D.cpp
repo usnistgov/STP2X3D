@@ -437,7 +437,7 @@ int main(int argc, char * argv[])
 	int status = -1; // Translation status
 
 #if _DEBUG
-	opt.SetInput(L"C:\\Users\\User\\Desktop\\test\\plate.stp");
+	opt.SetInput(L"D:\\STP2X3D\\bin\\STP2X3D\\Release\\nist_ctc_01_asme1_ap242.stp");
 	opt.SetNormal(0);
 	opt.SetColor(1);
 	opt.SetEdge(0);
@@ -445,7 +445,7 @@ int main(int argc, char * argv[])
 	opt.SetHtml(1);
 	opt.SetQuality(7.0);
 	opt.SetGDT(1);
-	opt.SetSFA(false);
+	opt.SetSFA(true);
 #else
 	if (!SetOption(argc, argv, &opt))
 		return status;

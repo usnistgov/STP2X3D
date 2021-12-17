@@ -999,7 +999,7 @@ void X3D_Writer::PrintIndentCount(void)
 {
 	printf("Indent Count\n");
 
-	for (unordered_map<int, int>::iterator it = m_indentCountMap.begin(); it != m_indentCountMap.end(); ++it)
+	for (map<int, int>::iterator it = m_indentCountMap.begin(); it != m_indentCountMap.end(); ++it)
 		printf("indent %d - %d\n", it->first, it->second);
 }
 

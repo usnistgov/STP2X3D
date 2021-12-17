@@ -12,7 +12,7 @@ Mesh::~Mesh(void)
 	Clear();
 }
 
-void Mesh::AddFaceIndex(const int v1, const int v2, const int v3)
+void Mesh::AddFaceIndex(int v1, int v2, int v3)
 {
 	Index m_index;
 	m_index.push_back(v1);
@@ -22,7 +22,7 @@ void Mesh::AddFaceIndex(const int v1, const int v2, const int v3)
 	m_faceIndexes.push_back(m_index);
 }
 
-void Mesh::AddNormalIndex(const int v1, const int v2, const int v3)
+void Mesh::AddNormalIndex(int v1, int v2, int v3)
 {
 	Index m_index;
 	m_index.push_back(v1);
