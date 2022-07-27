@@ -67,7 +67,8 @@ protected:
 	void Clear(void);
 
 	// SFA-specific functions
-	wstring WriteSketchGeometry(IShape*& iShape, int level) const;
+	wstring WriteSketchGeometry(IShape*& iShape, int level);
+	wstring WriteHiddenGeometry(Component*& comp, int level);
 	void CountIndent(int level);
 	void PrintIndentCount(void);
 	void PrintMaterialCount(void) const;

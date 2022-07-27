@@ -7,7 +7,8 @@ Component::Component(const TopoDS_Shape& shape)
 	: m_parentComponent(nullptr),
 	m_originalComponent(nullptr),
 	m_hasUniqueName(false),
-	m_shape(shape)
+	m_shape(shape),
+	m_stepID(-1)
 {
 }
 
@@ -191,6 +192,17 @@ bool Component::IsEmpty(void) const
 	if (GetIShapeSize() == 0
 		&& GetSubComponentSize() == 0)
 		return true;
+
+	return false;
+}
+
+bool Component::HasHiddenShape(void) const
+{
+	for (const auto& iShape : m_iShapes)
+	{
+		if (iShape->IsHidden())
+			return true;
+	}
 
 	return false;
 }

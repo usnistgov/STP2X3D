@@ -9,7 +9,7 @@ Tessellator::Tessellator(S2X_Option* opt)
 	: m_opt(opt)
 {
 	double angDeflection_max = 0.8, angDeflection_min = 0.2, angDeflection_gap = (angDeflection_max - angDeflection_min) / 10;
-	m_angDeflection = angDeflection_max - (m_opt->Quality() * angDeflection_gap);
+	m_angDeflection = max(angDeflection_max - (m_opt->Quality() * angDeflection_gap), angDeflection_min);
 	
 	//m_linDeflection = 2.5 / m_opt->Quality();
 	//m_angDeflection = 5.0 / m_opt->Quality();
@@ -43,15 +43,9 @@ void Tessellator::TessellateModel(Model*& model) const
 			// Get the relative linear deflection for a shape
 			double linDeflection = OCCUtil::GetDeflection(shape);
 
-			try
-			{
-				// Tessellate and add mesh data of a shape
-				OCCUtil::TessellateShape(shape, linDeflection, m_isRelative, m_angDeflection, true);
-			}
-			catch (...)
-			{
+			// Tessellate and add mesh data of a shape
+			if (!OCCUtil::TessellateShape(shape, linDeflection, m_isRelative, m_angDeflection, true))
 				wcout << "\tTessellation has failed on Shape: " << rootComp->GetName() << endl;
-			}
 		}
 	}
 
@@ -63,16 +57,7 @@ void Tessellator::TessellateModel(Model*& model) const
 		for (int i = 0; i < comp->GetIShapeSize(); ++i)
 		{
 			IShape* iShape = comp->GetIShapeAt(i);
-			
-			if (m_opt->Tessellation())
-				TessellateShape(iShape); // Tessellate each shape
-			else
-			{
-				if (iShape->IsFaceSet())
-					AddMeshForFaceSet(iShape);
-				else
-					AddMeshForSketchGeometry(iShape);
-			}
+			TessellateShape(iShape);
 		}
 	}
 
@@ -81,26 +66,28 @@ void Tessellator::TessellateModel(Model*& model) const
 
 void Tessellator::TessellateShape(IShape*& iShape) const
 {
-	const TopoDS_Shape& shape = iShape->GetShape();
-
-	try
+	if (m_opt->Tessellation()
+		|| (m_opt->SFA()
+			&& iShape->IsHidden()))
 	{
+		const TopoDS_Shape& shape = iShape->GetShape();
+
 		// Get the relative linear deflection for a shape
 		double linDeflection = OCCUtil::GetDeflection(shape);
-		
+
+		if (m_opt->SFA() // SFA-specific
+			&& iShape->IsHidden())
+			linDeflection = 0.1 * linDeflection;
+
 		// Tessellate and add mesh data of a shape
-		if (OCCUtil::TessellateShape(shape, linDeflection, m_isRelative, m_angDeflection, true))
-		{
-			if (iShape->IsFaceSet())
-				AddMeshForFaceSet(iShape);
-			else
-				AddMeshForSketchGeometry(iShape);
-		}
+		if (!OCCUtil::TessellateShape(shape, linDeflection, m_isRelative, m_angDeflection, true))
+			wcout << "\tTessellation has failed on Shape: " << iShape->GetName() << endl;
 	}
-	catch (...)
-	{
-		wcout << "\tTessellation has failed on Shape: " << iShape->GetName() << endl;
-	}
+
+	if (iShape->IsFaceSet())
+		AddMeshForFaceSet(iShape);
+	else
+		AddMeshForSketchGeometry(iShape);
 }
 
 void Tessellator::AddMeshForFaceSet(IShape*& iShape) const

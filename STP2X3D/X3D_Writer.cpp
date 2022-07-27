@@ -203,6 +203,7 @@ wstring X3D_Writer::WriteModel(Model*& model, int level)
 		Component* rootComp = model->GetRootComponentAt(i);
 
 		if (m_opt->SFA() // SFA-specific
+			&& rootComp->GetSubComponentSize() == 0
 			&& rootComp->GetIShapeSize() == 1
 			&& rootComp->GetIShapeAt(0)->IsSketchGeometry())
 		{
@@ -264,6 +265,7 @@ wstring X3D_Writer::WriteComponent(Component*& comp, int level)
 		if (subComp->IsCopy())
 		{
 			if (m_opt->SFA() // SFA-specific
+				&& subComp->GetOriginalComponent()->GetSubComponentSize() == 0
 				&& subComp->GetOriginalComponent()->GetIShapeSize() == 1
 				&& subComp->GetOriginalComponent()->GetIShapeAt(0)->IsSketchGeometry())
 			{
@@ -288,6 +290,7 @@ wstring X3D_Writer::WriteComponent(Component*& comp, int level)
 		else
 		{
 			if (m_opt->SFA() // SFA-specific
+				&& subComp->GetSubComponentSize() == 0
 				&& subComp->GetIShapeSize() == 1
 				&& subComp->GetIShapeAt(0)->IsSketchGeometry())
 			{
@@ -297,7 +300,13 @@ wstring X3D_Writer::WriteComponent(Component*& comp, int level)
 			else
 			{
 				ss_comp << Indent(level + 2);
-				ss_comp << "<Group DEF='" << subComp->GetName() << "'>\n";
+				ss_comp << "<Group";
+				
+				if (m_opt->SFA()
+					&& subComp->GetStepID() != -1)
+					ss_comp << " id='msb " << subComp->GetStepID() << "'";
+
+				ss_comp << " DEF='" << subComp->GetName() << "'>\n";
 				CountIndent(level + 2);
 
 				ss_comp << WriteComponent(subComp, level + 2); // Recursive call
@@ -321,6 +330,9 @@ wstring X3D_Writer::WriteComponent(Component*& comp, int level)
 	{
 		IShape* iShape = comp->GetIShapeAt(i);
 
+		if (iShape->IsHidden())
+			continue;
+
 		try
 		{
 			ss_comp << WriteShape(iShape, level + 1);
@@ -330,6 +342,10 @@ wstring X3D_Writer::WriteComponent(Component*& comp, int level)
 			wcout << "Writing X3D has failed on Shape: " << iShape->GetName() << endl;
 		}
 	}
+
+	if (m_opt->Rosette()
+		&& comp->HasHiddenShape())
+		ss_comp << WriteHiddenGeometry(comp, level + 1);
 
 	return ss_comp.str();
 }
@@ -407,6 +423,11 @@ wstring X3D_Writer::WriteShape(IShape*& iShape, int level)
 	{
 		ss_shape << Indent(level);
 		ss_shape << "<Shape";
+
+		if (m_opt->SFA()
+			&& iShape->GetStepID() != -1
+			&& iShape->IsHidden())
+			ss_shape << " id='curve 11 " << iShape->GetStepID() << "'";
 
 		if (!m_opt->SFA())
 			ss_shape << " DEF='" << iShape->GetName() << "'";
@@ -928,7 +949,7 @@ bool X3D_Writer::CheckSameAppearance(const Quantity_Color& diffuseColor, bool is
 	return false;
 }
 
-wstring X3D_Writer::WriteSketchGeometry(IShape*& iShape, int level) const
+wstring X3D_Writer::WriteSketchGeometry(IShape*& iShape, int level)
 {
 	wstringstream ss_sg;
 
@@ -978,8 +999,46 @@ wstring X3D_Writer::WriteSketchGeometry(IShape*& iShape, int level) const
 
 	ss_sg << Indent(level);
 	ss_sg << "</Shape>\n";
-	
+
 	return ss_sg.str();
+}
+
+wstring X3D_Writer::WriteHiddenGeometry(Component*& comp, int level)
+{
+	wstringstream ss_hg;
+	
+	if (m_opt->SFA()) // SFA-specific
+	{
+		ss_hg << "<!--composites-->\n";
+		ss_hg << Indent(level) << "<Switch whichChoice='0' id='swComposites1'><Group>\n";
+	}
+	else
+		level--;
+
+	// Write shape nodes
+	for (int i = 0; i < comp->GetIShapeSize(); ++i)
+	{
+		IShape* iShape = comp->GetIShapeAt(i);
+
+		if (!iShape->IsHidden())
+			continue;
+
+		try
+		{
+			ss_hg << WriteShape(iShape, level + 1);
+		}
+		catch (...)
+		{
+			wcout << "Writing X3D has failed on Shape: " << iShape->GetName() << endl;
+		}
+	}
+
+	if (m_opt->SFA()) // SFA-specific
+	{
+		ss_hg << Indent(level) << "</Group></Switch>\n";
+	}
+
+	return ss_hg.str();
 }
 
 void X3D_Writer::CountIndent(int level)

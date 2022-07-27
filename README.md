@@ -35,8 +35,7 @@ The NIST [STEP to X3D Translator](https://www.nist.gov/services-resources/softwa
 - NIST STP2X3D is a command line software. Please check out the [Usage guide](USAGE.md).
 
 ## Work In Progress
-- Setting of adaptive tessellation parameters per each body.
-- Translation of geometries (faces, edges) linked to GD&T items.
+- Determination of an appropriate tessellation parameters per each body.
 
 ## Contact Information
 - Soonjo Kwon, soonjo.kwon@kumoh.ac.kr
@@ -49,7 +48,7 @@ The NIST [STEP to X3D Translator](https://www.nist.gov/services-resources/softwa
 - R. R. Lipman, S. Kwon, 2021, [**STEP File Analyzer and Viewer User Guide (Update 7)**](https://nvlpubs.nist.gov/nistpubs/ams/NIST.AMS.200-12.pdf), *NIST Advanced Manufacturing Series*, 200-12.
 
 ## Version
-1.10
+1.20
 
 ## Disclaimers
 [NIST Disclaimer](https://www.nist.gov/disclaimer)

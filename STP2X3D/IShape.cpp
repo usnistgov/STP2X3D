@@ -11,8 +11,10 @@ IShape::IShape(const TopoDS_Shape& shape)
 	m_isMultiTransparent(false),
 	m_isTransparent(false),
 	m_isFaceSet(false),
+	m_isHidden(false),
 	m_component(nullptr),
-	m_globalIndex(0)
+	m_globalIndex(0),
+	m_stepID(-1)
 {
 	// Check if the shape is a face set
 	if (OCCUtil::HasFace(m_shape))

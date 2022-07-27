@@ -17,6 +17,7 @@ public:
 	void SetBatch(const int& batch) { m_batch = batch; }
 	void SetSFA(bool sfa) { m_SFA = sfa; }
 	void SetGDT(bool gdt) { m_gdt = gdt; }
+	void SetRosette(bool rosette) { m_rosette = rosette; }
 
 	const wstring& Input(void) const { return m_input; }
 	const wstring Output(void) const;
@@ -30,9 +31,10 @@ public:
 	int Batch(void) const { return m_batch; }
 	bool SFA(void) const { return m_SFA; }
 	bool GDT(void) const { return m_gdt; }
+	bool Rosette(void) const { return m_rosette; }
 
-	// Software version (as of Jan 2021)
-	const wstring Version(void) const { return L"1.10"; }
+	// Software version (as of Feb 2022)
+	const wstring Version(void) const { return L"1.20"; }
 
 private:
 	wstring m_input;	// Input file path
@@ -46,4 +48,5 @@ private:
 	int m_batch;		// Batch option
 	bool m_SFA;			// Specific to SFA
 	bool m_gdt;			// GD&T option
+	bool m_rosette;		// Rosette used in Composite Design
 };

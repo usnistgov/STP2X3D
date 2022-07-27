@@ -13,7 +13,8 @@ S2X_Option::S2X_Option()
     m_quality(5.0),
     m_batch(-1),
     m_SFA(true),
-    m_gdt(false)
+    m_gdt(false),
+    m_rosette(false)
 {
 }
 

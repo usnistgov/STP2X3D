@@ -13,6 +13,7 @@ public:
 	void SetTransformation(const gp_Trsf& trsf) { m_trsf = trsf; }
 	void SetParentComponent(Component* parentComp) { m_parentComponent = parentComp; }
 	void SetOriginalComponent(Component*& originalComp);
+	void SetShape(const TopoDS_Shape& shape) { m_shape = shape; }
 
 	void AddSubComponent(Component*& subComp);
 	void AddIShape(IShape*& iShape);
@@ -37,8 +38,13 @@ public:
 	bool IsAssembly(void) const;
 	bool IsRoot(void) const;
 	bool IsEmpty(void) const;
+	bool HasHiddenShape(void) const;
 
 	void Clean(void);
+
+	// SFA-specific
+	void SetStepID(int stepID) { m_stepID = stepID; }
+	const int GetStepID(void) const { return m_stepID; }
 
 protected:
 	void AddCopiedComponent(Component* copiedComp) { m_copiedComponents.push_back(copiedComp); }
@@ -61,6 +67,7 @@ private:
 	TopoDS_Shape m_shape;
 	gp_Trsf m_trsf;
 	bool m_hasUniqueName;
+	int m_stepID;
 
 	Component* m_originalComponent;
 	Component* m_parentComponent;

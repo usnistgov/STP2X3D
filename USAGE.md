@@ -11,8 +11,11 @@ The following information describes how to use the software. Running the executi
 - --edge: Boundary edges (1:yes, 0:no) default=0
 - --sketch: Sketch geometry (1:yes, 0:no) default=1
 - --html: Output file type (1:html, 0:x3d) default=0
-- --quality: Mesh quality (1-low to 10-high) default=5
-- --batch: Processing multiple STEP files (1:include sub-directories, 0:current dir). Followed by a folder path (e.g. --batch 0 c:\\)
+- --quality    Mesh quality (1-low to 10-high) default=5
+- --gdt        Geometric elements related to GD&T (1:yes, 0:no) default=0
+- --tess       Adaptive tessellation per each body (1:yes, 0:no) default=0
+- --rosette    Rosette used for Composite Design (1:yes, 0:no) default=0
+- --batch      Processing multiple STEP files (1:include sub-directories, 0:current dir). Followed by a folder path (e.g. --batch 0 c:\\)
 
 ## Examples
 - STP2X3D.exe --input Model.stp --edge 1 --quality 7

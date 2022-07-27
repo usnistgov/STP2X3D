@@ -62,13 +62,21 @@ public:
 		model->GetAllComponents(comps);
 		
 		int sketchCount = 0;
+		int rosetteCount = 0;
 
 		for (const auto& comp : comps)
 		{
 			for (int i = 0; i < comp->GetIShapeSize(); ++i)
 			{
-				if (comp->GetIShapeAt(i)->IsSketchGeometry())
-					sketchCount++;
+				IShape* iShape = comp->GetIShapeAt(i);
+				
+				if (iShape->IsSketchGeometry())
+				{
+					if (iShape->IsHidden())
+						rosetteCount++;
+					else
+						sketchCount++;
+				}	
 			}
 		}
 
@@ -76,5 +84,9 @@ public:
 
 		if (sketchCount > 0)
 			printf("Sketch geometry was found.\n");
+
+		if (rosetteCount > 0)
+			printf("Number of Rosettes: %d\n", rosetteCount);
+		
 	}
 };

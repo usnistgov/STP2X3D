@@ -148,8 +148,12 @@ namespace OCCUtil
 	double GetDeflection(const TopoDS_Shape& shape)
 	{
 		Bnd_Box bndBox = ComputeBoundingBox(shape);
+		
+		bndBox = bndBox.FinitePart();
+
 		gp_Pnt minPnt = bndBox.CornerMin();
 		gp_Pnt maxPnt = bndBox.CornerMax();
+
 		double deviationCoefficient = 0.001;
 
 		double deflection = Prs3d::GetDeflection(Graphic3d_Vec3d(minPnt.X(), minPnt.Y(), minPnt.Z()), Graphic3d_Vec3d(maxPnt.X(), maxPnt.Y(), maxPnt.Z()), deviationCoefficient);

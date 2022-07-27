@@ -72,13 +72,17 @@ bool STEP_Reader::ReadSTEP(Model* model)
 			for (int i = 1; i <= shapeSize; ++i)
 			{
 				const TDF_Label& label_shape = labels_shapes.Value(i);
-				const TopoDS_Shape& shape = m_shapeTool->GetShape(label_shape);
+				TopoDS_Shape& shape = m_shapeTool->GetShape(label_shape);
 
 				Component* rootComp = new Component(shape);
 				rootComp->SetUniqueName(GetName(label_shape));
 				model->AddRootComponent(rootComp);
 
 				AddSubComponents(rootComp, label_shape);
+
+				if (i == 1
+					&& m_opt->Rosette())
+					AddHiddenIShape(rootComp);
 			}
 		}
 	}
@@ -157,6 +161,10 @@ void STEP_Reader::AddSubComponents(Component*& comp, const TDF_Label& label)
 		Component* subComp = new Component(refShape);	// New subcomp
 		subComp->SetUniqueName(GetName(label_ref));		// Set the name
 		subComp->SetTransformation(trsf);				// Set the transformation
+		
+		if (m_stepData->GetEntityTypeFromShape(refShape) == "StepShape_ManifoldSolidBrep")
+			subComp->SetStepID(m_stepData->GetEntityIDFromShape(refShape));	// STEP Entity ID
+		
 		comp->AddSubComponent(subComp);					// Add the subcomp (This should be here!)
 
 		// Skip if the subcomp is a copy
@@ -179,6 +187,7 @@ void STEP_Reader::AddSubComponents(Component*& comp, const TDF_Label& label)
 		for (const auto& subShape : subShapes)
 		{
 			IShape* iShape = new IShape(subShape);
+			iShape->SetStepID(m_stepData->GetEntityIDFromShape(subShape));	// STEP Entity ID
 			comp->AddIShape(iShape);
 
 			AddColors(iShape); // Add colors for each face OR edge
@@ -478,11 +487,16 @@ void STEP_Reader::ReadGDT(Model*& model) const
 			XCAFDimTolObjects_GeomToleranceTypeValue typeVal = aGeomObject->GetTypeOfValue();
 			double val = aGeomObject->GetValue();
 			
+			double maxValModVal = aGeomObject->GetMaxValueModifier();
+
 			XCAFDimTolObjects_GeomToleranceZoneModif zoneModif = aGeomObject->GetZoneModifier();
-			double zoneModifVal = aGeomObject->GetValueOfZoneModifier();
+			double zoneModVal = aGeomObject->GetValueOfZoneModifier();
 
 			//Handle(TCollection_HAsciiString) ascHSemNameStr = aGeomObject->GetSemanticName();
 			//TCollection_AsciiString ascSemNameStr = ascHSemNameStr->String();
+			
+			//TDF_LabelSequence datums;
+			//m_gdtTool->GetDatumOfTolerLabels(label_geom, datums);
 
 			if (name)
 			{
@@ -517,7 +531,9 @@ void STEP_Reader::ReadGDT(Model*& model) const
 				}
 
 				//const TopoDS_Shape& pptShape = aGeomObject->GetPresentation();
-				//gdt->AddShape(pptShape);
+
+				//if (!pptShape.IsNull())
+				//	gdt->AddShape(pptShape);
 			}
 		}
 	}
@@ -585,7 +601,9 @@ void STEP_Reader::ReadGDT(Model*& model) const
 				}
 
 				//const TopoDS_Shape& pptShape = aDimObject->GetPresentation();
-				//gdt->AddShape(pptShape);
+
+				//if (!pptShape.IsNull())
+				//	gdt->AddShape(pptShape);
 			}
 		}
 	}
@@ -618,6 +636,9 @@ void STEP_Reader::ReadGDT(Model*& model) const
 
 			XCAFDimTolObjects_DatumTargetType targetType = aDatumObject->GetDatumTargetType();
 			gp_Ax2 axis = aDatumObject->GetDatumTargetAxis();
+
+			//TDF_LabelSequence geomTols;
+			//m_gdtTool->GetTolerOfDatumLabels(label_datum, geomTols);
 
 			//Handle(TCollection_HAsciiString) ascHSemNameStr = aDatumObject->GetSemanticName();
 			//TCollection_AsciiString ascSemNameStr = ascHSemNameStr->String();
@@ -655,7 +676,9 @@ void STEP_Reader::ReadGDT(Model*& model) const
 				}
 
 				//const TopoDS_Shape& pptShape = aDatumObject->GetPresentation();
-				//gdt->AddShape(pptShape);
+
+				//if (!pptShape.IsNull())
+				//	gdt->AddShape(pptShape);
 			}
 		}
 	}
@@ -665,4 +688,29 @@ void STEP_Reader::ReadGDT(Model*& model) const
 		&& datumSize == 0
 		&& dimSize == 0)
 		m_opt->SetGDT(false);
+}
+
+void STEP_Reader::AddHiddenIShape(Component*& rootComp)
+{
+	TopoDS_Shape rootShape = rootComp->GetShape();
+
+	TopoDS_Compound compShape;
+	BRep_Builder aBuilder;
+	aBuilder.MakeCompound(compShape);
+	aBuilder.Add(compShape, rootShape);
+	
+	for (int i = 0; i < m_stepData->GetHiddenShapeSize(); ++i)
+	{
+		TopoDS_Shape hiddenShape = m_stepData->GetHiddenShapeAt(i);
+		aBuilder.Add(compShape, hiddenShape);
+
+		IShape* iShape = new IShape(hiddenShape);
+		iShape->SetHidden(true);
+		iShape->AddColor(hiddenShape, Quantity_ColorRGBA(Quantity_Color(1, 1, 1, Quantity_TOC_RGB))); // White
+		iShape->SetStepID(m_stepData->GetEntityIDFromShape(hiddenShape));	// STEP Entity ID
+
+		rootComp->AddIShape(iShape);
+	}
+
+	rootComp->SetShape(compShape);
 }

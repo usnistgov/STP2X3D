@@ -13,6 +13,7 @@ public:
 	void SetComponent(Component* comp) { m_component = comp; }
 	void SetGlobalIndex(int globalIndex) { m_globalIndex = globalIndex; }
 	void SetTessellated(bool isTessellated) { m_isTessellated = isTessellated; }
+	void SetHidden(bool isHidden) { m_isHidden = isHidden; }
 
 	void AddColor(const TopoDS_Shape& shape, const Quantity_ColorRGBA& color);
 	void AddMesh(Mesh*& mesh) { m_meshList.push_back(mesh); }
@@ -37,10 +38,16 @@ public:
 	bool IsFaceSet(void) const { return m_isFaceSet; }
 	bool IsSketchGeometry(void) const { return !m_isFaceSet; }
 
+	bool IsHidden(void) const { return m_isHidden; }
+
 	bool IsEmpty(void) const;
 	
 	// SFA-specific
 	wstring GetUniqueName(void) const;
+
+	void SetStepID(int stepID) { m_stepID = stepID; }
+	const int GetStepID(void) const { return m_stepID; }
+
 
 protected:
 	void CheckColor(const Quantity_ColorRGBA& color);
@@ -50,12 +57,14 @@ private:
 	wstring m_name;
 	TopoDS_Shape m_shape;
 	int m_globalIndex;
+	int m_stepID;
 
 	bool m_isMultiColored;
 	bool m_isMultiTransparent;
 	bool m_isTransparent;
 	bool m_isTessellated;
 	bool m_isFaceSet;
+	bool m_isHidden;
 
 	Component* m_component;
 	

@@ -9,8 +9,10 @@
 #include "GDT_Item.h"
 #include "Mesh.h"
 //#include <experimental/filesystem>
+//#include <filesystem>
 
 namespace fs = std::experimental::filesystem;
+//namespace fs = std::filesystem;
 
 void Test(S2X_Option* opt)
 {
@@ -91,6 +93,8 @@ void PrintUsage(wstring exe, S2X_Option* opt)
 	cout << " --html       Output file type (1:html, 0:x3d) default=" << opt->Html() << endl;
 	cout << " --quality    Mesh quality (1-low to 10-high) default=" << opt->Quality() << endl;
 	cout << " --gdt        Geometric elements related to GD&T (1:yes, 0:no) default=" << opt->GDT() << endl;
+	cout << " --tess       Adaptive tessellation per each body (1:yes, 0:no) default=" << opt->Tessellation() << endl;
+	cout << " --rosette    Rosette used for Composite Design (1:yes, 0:no) default=" << opt->Rosette() << endl;
 	cout << " --batch      Processing multiple STEP files (1:include sub-directories, 0:current dir)" << endl;
 	cout << "              Followed by a folder path (e.g. --batch 0 c:\\)" << endl;
 	cout << endl;
@@ -158,7 +162,8 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 			&& token != L"--gdt"
 			&& token != L"--batch"
 			&& token != L"--sfa"
-			&& token != L"--tess")
+			&& token != L"--tess"
+			&& token != L"--rosette")
 		{
 			wcout << "No such option: " << token << endl;
 			return false;
@@ -271,6 +276,18 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 						&& tess != 1)
 					{
 						cout << "tess must be either 0 or 1." << endl;
+						return false;
+					}
+				}
+				else if (token == L"--rosette")
+				{
+					int rosette = stoi(token1);
+					opt->SetRosette(rosette);
+
+					if (rosette != 0
+						&& rosette != 1)
+					{
+						cout << "rosette must be either 0 or 1." << endl;
 						return false;
 					}
 				}
@@ -437,15 +454,17 @@ int main(int argc, char * argv[])
 	int status = -1; // Translation status
 
 #if _DEBUG
-	opt.SetInput(L"D:\\STP2X3D\\bin\\STP2X3D\\Release\\nist_ctc_01_asme1_ap242.stp");
+	opt.SetInput(L"C:\\Users\\User\\Desktop\\Hand-Bracelet.STEP");
 	opt.SetNormal(0);
 	opt.SetColor(1);
 	opt.SetEdge(0);
-	opt.SetSketch(0);
+	opt.SetSketch(1);
 	opt.SetHtml(1);
-	opt.SetQuality(7.0);
-	opt.SetGDT(1);
+	opt.SetQuality(10.0);
+	opt.SetGDT(0);
 	opt.SetSFA(true);
+	opt.SetTessellation(0);
+	opt.SetRosette(true);
 #else
 	if (!SetOption(argc, argv, &opt))
 		return status;
