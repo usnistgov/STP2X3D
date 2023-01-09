@@ -34,7 +34,7 @@ public:
 	bool Rosette(void) const { return m_rosette; }
 
 	// Software version (as of Feb 2022)
-	const wstring Version(void) const { return L"1.20"; }
+	const wstring Version(void) const { return L"1.21"; }
 
 private:
 	wstring m_input;	// Input file path
