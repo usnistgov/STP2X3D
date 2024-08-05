@@ -39,7 +39,7 @@ public:
 	bool TessSolid(void) const { return m_tessSolid; }
 
 	// Software version (as of June 2023)
-	const wstring Version(void) const { return L"1.30"; }
+	const wstring Version(void) const { return L"1.50"; }
 
 private:
 	wstring m_input;	// Input file path
