@@ -38,7 +38,7 @@ public:
 	bool SectionCap(void) const { return m_cap; }
 	bool TessSolid(void) const { return m_tessSolid; }
 
-	// Software version (as of June 2023)
+	// Software version (as of August 2024)
 	const wstring Version(void) const { return L"1.50"; }
 
 private:
