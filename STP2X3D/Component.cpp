@@ -59,6 +59,19 @@ void Component::GetAllComponents(vector<Component*>& comps) const
 	}
 }
 
+void Component::GetLeafComponents(vector<Component*>& comps)
+{
+	if (IsLeaf())
+		comps.push_back(this);
+
+	// Traverse sub components recursively
+	for (int i = 0; i < GetSubComponentSize(); ++i)
+	{
+		Component* subComp = GetSubComponentAt(i);
+		subComp->GetLeafComponents(comps);
+	}
+}
+
 void Component::Clean(void)
 {
 	CleanEmptyIShapes();
@@ -103,7 +116,8 @@ void Component::CleanEmptySubComponents(void)
 		subComp->CleanEmptySubComponents();
 
 		// Skip if the subcomp is a copy
-		if (subComp->IsCopy())
+		if (subComp->IsCopy()
+			&& !subComp->GetOriginalComponent()->IsEmpty())
 			continue;
 
 		// Remove subcomponents having neither IShape nor child
@@ -196,16 +210,36 @@ bool Component::IsEmpty(void) const
 	return false;
 }
 
-bool Component::HasHiddenShape(void) const
+bool Component::IsLeaf(void) const
+{
+	if (GetSubComponentSize() == 0)
+		return true;
+
+	return false;
+}
+
+bool Component::HasRosette(void) const
 {
 	for (const auto& iShape : m_iShapes)
 	{
-		if (iShape->IsHidden())
+		if (iShape->IsRosette())
 			return true;
 	}
 
 	return false;
 }
+
+bool Component::HasSectionCap(void) const
+{
+	for (const auto& iShape : m_iShapes)
+	{
+		if (iShape->IsSectionCap())
+			return true;
+	}
+
+	return false;
+}
+
 
 const Bnd_Box Component::GetBoundingBox(bool sketch) const
 {
@@ -245,6 +279,27 @@ const Bnd_Box Component::GetBoundingBox(bool sketch) const
 	bndBox = bndBox.FinitePart();
 
 	return bndBox;
+}
+
+TopoDS_Shape Component::GetTransformedShape(void)
+{
+	TopoDS_Shape shape = GetShape();
+	TopoDS_Shape copiedShape = OCCUtil::GetCopiedShape(shape);
+
+	gp_Trsf trsf = GetTransformation();
+	Component* temp = this;
+
+	while (!temp->IsRoot())
+	{
+		temp = temp->GetParentComponent();
+		gp_Trsf tempTrsf = temp->GetTransformation();
+
+		trsf = trsf.Multiplied(tempTrsf);
+	}
+
+	TopoDS_Shape trsfShape = OCCUtil::TransformShape(copiedShape, trsf);
+
+	return trsfShape;
 }
 
 void Component::Clear(void)

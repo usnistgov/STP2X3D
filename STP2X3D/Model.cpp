@@ -22,6 +22,14 @@ void Model::GetAllComponents(vector<Component*>& comps) const
 	}
 }
 
+void Model::GetLeafComponents(vector<Component*>& comps) const
+{
+	for (const auto& rootComp : m_rootComponents)
+	{
+		rootComp->GetLeafComponents(comps);
+	}
+}
+
 const Bnd_Box Model::GetBoundingBox(bool sketch) const
 {
 	Bnd_Box bndBox;
@@ -234,7 +242,9 @@ void Model::UpdateIShapeNames(void) const
 		{
 			IShape* iShape = comp->GetIShapeAt(i);
 
-			if (iShape->IsSketchGeometry())
+			if (iShape->IsSketchGeometry()
+				|| iShape->IsRosette()
+				|| iShape->IsSectionCap())
 				continue;
 
 			iShape->SetName(compName + connector + to_wstring(shapeIndex));

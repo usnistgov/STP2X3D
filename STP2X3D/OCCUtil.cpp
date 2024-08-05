@@ -6,7 +6,9 @@ namespace OCCUtil
 {
 	const int GetID(const TopoDS_Shape& shape)
 	{
-		const int id = shape.HashCode(INT_MAX);
+		//const int id = shape.HashCode(INT_MAX);
+		const int id = static_cast<int>(std::hash<TopoDS_Shape>{}(shape));
+		
 		return id;
 	}
 
@@ -52,10 +54,10 @@ namespace OCCUtil
 		}
 	}
 
-	const TopoDS_Shape& GetCopiedShape(const TopoDS_Shape& shape)
+	TopoDS_Shape GetCopiedShape(TopoDS_Shape shape)
 	{
 		BRepBuilderAPI_Copy copier(shape);
-		const TopoDS_Shape& copiedShape = copier.Shape();
+		const TopoDS_Shape copiedShape = copier.Shape();
 
 		return copiedShape;
 	}
@@ -96,10 +98,11 @@ namespace OCCUtil
 		return false;
 	}
 
-	const TopoDS_Shape& TransformShape(const TopoDS_Shape& shape, const gp_Trsf& trsf)
+	TopoDS_Shape TransformShape(TopoDS_Shape shape, gp_Trsf trsf)
 	{
 		// Note that a shape loses its color after transformation
-		const TopoDS_Shape& trsfShape = BRepBuilderAPI_Transform(shape, trsf).Shape();
+		BRepBuilderAPI_Transform transform(shape, trsf);
+		TopoDS_Shape trsfShape = transform.Shape();
 
 		return trsfShape;
 	}

@@ -31,14 +31,19 @@ public:
 	const int GetIShapeSize(void) const { return (int)m_iShapes.size(); }
 
 	void GetAllComponents(vector<Component*>& comps) const;
+	void GetLeafComponents(vector<Component*>& comps);
 	const Bnd_Box GetBoundingBox(bool sketch) const;
+
+	TopoDS_Shape GetTransformedShape(void);
 
 	bool HasUniqueName(void) const { return m_hasUniqueName; }
 	bool IsCopy(void) const;
 	bool IsAssembly(void) const;
 	bool IsRoot(void) const;
 	bool IsEmpty(void) const;
-	bool HasHiddenShape(void) const;
+	bool IsLeaf(void) const;
+	bool HasRosette(void) const;
+	bool HasSectionCap(void) const;
 
 	void Clean(void);
 

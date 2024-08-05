@@ -82,8 +82,10 @@ wstring X3D_Writer::OpenHeader(void) const
 	{
 		ss_hd << "<html>\n";
 		ss_hd << "<head>\n";
-		ss_hd << " <link rel='stylesheet' type='text/css' href='https://www.x3dom.org/x3dom/release/x3dom.css'/>\n";
-		ss_hd << " <script type='text/javascript' src='https://www.x3dom.org/x3dom/release/x3dom.js'></script>\n";
+		//ss_hd << " <link rel='stylesheet' type='text/css' href='https://www.x3dom.org/x3dom/release/x3dom.css'/>\n";
+		//ss_hd << " <script type='text/javascript' src='https://www.x3dom.org/x3dom/release/x3dom.js'></script>\n";
+		ss_hd << " <link rel='stylesheet' type='text/css' href='https://www.x3dom.org/download/1.8.3/x3dom.css'/>\n";
+		ss_hd << " <script type='text/javascript' src='https://www.x3dom.org/download/1.8.3/x3dom.js'></script>\n";
 		ss_hd << "</head>\n";
 		ss_hd << "<body>\n";
 	}
@@ -330,7 +332,8 @@ wstring X3D_Writer::WriteComponent(Component*& comp, int level)
 	{
 		IShape* iShape = comp->GetIShapeAt(i);
 
-		if (iShape->IsHidden())
+		if (iShape->IsRosette()
+			|| iShape->IsSectionCap())
 			continue;
 
 		try
@@ -344,8 +347,12 @@ wstring X3D_Writer::WriteComponent(Component*& comp, int level)
 	}
 
 	if (m_opt->Rosette()
-		&& comp->HasHiddenShape())
-		ss_comp << WriteHiddenGeometry(comp, level + 1);
+		&& comp->HasRosette())
+		ss_comp << WriteRosetteGeometry(comp, level + 1);
+
+	if (m_opt->SectionCap()
+		&& comp->HasSectionCap())
+		ss_comp << WriteSectionCapGeometry(comp, level + 1);
 
 	return ss_comp.str();
 }
@@ -426,7 +433,7 @@ wstring X3D_Writer::WriteShape(IShape*& iShape, int level)
 
 		if (m_opt->SFA()
 			&& iShape->GetStepID() != -1
-			&& iShape->IsHidden())
+			&& iShape->IsRosette())
 			ss_shape << " id='curve 11 " << iShape->GetStepID() << "'";
 
 		if (!m_opt->SFA())
@@ -484,18 +491,24 @@ wstring X3D_Writer::WriteIndexedFaceSet(IShape*& iShape, int level)
 										transparency, isSingleTransparent);
 	}
 
+	bool isSectionCap = iShape->IsSectionCap();
+	bool isTessSolidModel = iShape->IsTessSolidModel();
+
 	// Open IndexedFaceSet
 	ss_ifs << Indent(level);
 	ss_ifs << "<IndexedFaceSet";
 
-	if (!m_opt->Normal())
+	if (!m_opt->Normal()
+		&& !isTessSolidModel)
 		ss_ifs << " creaseAngle='" << NumTool::DoubleToWString(m_creaseAngle) << "'";
 	
 	ss_ifs << " solid='false'";
 
 	ss_ifs << WriteCoordinateIndex(iShape, true);
 
-	if (m_opt->Normal())
+	if (m_opt->Normal()
+		&& !isSectionCap
+		&& !isTessSolidModel)
 		ss_ifs << WriteNormalIndex(iShape);
 	
 	ss_ifs << ">\n";
@@ -505,7 +518,9 @@ wstring X3D_Writer::WriteIndexedFaceSet(IShape*& iShape, int level)
 	ss_ifs << WriteCoordinate(iShape, false);
 
 	// Write normals
-	if (m_opt->Normal())
+	if (m_opt->Normal()
+		&& !isSectionCap
+		&& !isTessSolidModel)
 	{
 		ss_ifs << Indent(level + 1);
 		ss_ifs << WriteNormal(iShape);
@@ -1003,14 +1018,14 @@ wstring X3D_Writer::WriteSketchGeometry(IShape*& iShape, int level)
 	return ss_sg.str();
 }
 
-wstring X3D_Writer::WriteHiddenGeometry(Component*& comp, int level)
+wstring X3D_Writer::WriteRosetteGeometry(Component*& comp, int level)
 {
-	wstringstream ss_hg;
-	
+	wstringstream ss_rg;
+
 	if (m_opt->SFA()) // SFA-specific
 	{
-		ss_hg << "<!--composites-->\n";
-		ss_hg << Indent(level) << "<Switch whichChoice='0' id='swComposites1'><Group>\n";
+		ss_rg << "<!--composites-->\n";
+		ss_rg << Indent(level) << "<Switch whichChoice='0' id='swComposites1'><Group>\n";
 	}
 	else
 		level--;
@@ -1020,12 +1035,12 @@ wstring X3D_Writer::WriteHiddenGeometry(Component*& comp, int level)
 	{
 		IShape* iShape = comp->GetIShapeAt(i);
 
-		if (!iShape->IsHidden())
+		if (!iShape->IsRosette())
 			continue;
 
 		try
 		{
-			ss_hg << WriteShape(iShape, level + 1);
+			ss_rg << WriteShape(iShape, level + 1);
 		}
 		catch (...)
 		{
@@ -1035,10 +1050,71 @@ wstring X3D_Writer::WriteHiddenGeometry(Component*& comp, int level)
 
 	if (m_opt->SFA()) // SFA-specific
 	{
-		ss_hg << Indent(level) << "</Group></Switch>\n";
+		ss_rg << Indent(level) << "</Group></Switch>\n";
 	}
 
-	return ss_hg.str();
+	return ss_rg.str();
+}
+
+wstring X3D_Writer::WriteSectionCapGeometry(Component*& comp, int level)
+{
+	wstringstream ss_cg;
+
+	int sectionCapCount = 0;
+	int tempID = -1;
+
+	vector<IShape*> sectionCaps;
+
+	for (int i = 0; i < comp->GetIShapeSize(); ++i)
+	{
+		IShape* iShape = comp->GetIShapeAt(i);
+
+		if (iShape->IsSectionCap())
+			sectionCaps.push_back(iShape);
+	}
+
+	if (!m_opt->SFA())
+		level--;
+
+	// Write shape nodes
+	for (int i = 0; i < (int)sectionCaps.size(); ++i)
+	{
+		IShape* iShape = sectionCaps[i];
+
+		int sectionID = iShape->GetStepID();
+
+		if (sectionID != tempID)
+		{
+			if (m_opt->SFA()) // SFA-specific
+			{
+				ss_cg << Indent(level) << "<Switch whichChoice='-1' id='swClippingCap";
+				ss_cg << to_wstring(++sectionCapCount);
+				ss_cg << "'><Group>\n";
+			}
+		}
+
+		try
+		{
+			ss_cg << WriteShape(iShape, level + 1);
+		}
+		catch (...)
+		{
+			wcout << "Writing X3D has failed on Shape: " << iShape->GetName() << endl;
+		}
+
+		if (i == (int)sectionCaps.size() - 1
+			|| sectionID != sectionCaps[i+1]->GetStepID())
+		{
+			if (m_opt->SFA()) // SFA-specific
+			{
+				ss_cg << Indent(level) << "</Group></Switch>\n";
+			}
+		}
+
+		tempID = sectionID;
+	}
+
+	return ss_cg.str();
 }
 
 void X3D_Writer::CountIndent(int level)

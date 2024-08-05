@@ -13,8 +13,9 @@ public:
 	void SetComponent(Component* comp) { m_component = comp; }
 	void SetGlobalIndex(int globalIndex) { m_globalIndex = globalIndex; }
 	void SetTessellated(bool isTessellated) { m_isTessellated = isTessellated; }
-	void SetHidden(bool isHidden) { m_isHidden = isHidden; }
-
+	void SetRosette(bool isRosette) { m_isRosette = isRosette; }
+	void SetSectionCap(bool isSectionCap) { m_isSectionCap = isSectionCap; }
+	void SetTessSolidModel(bool isTessSolidModel) { m_isTessSolidModel = isTessSolidModel; }
 	void AddColor(const TopoDS_Shape& shape, const Quantity_ColorRGBA& color);
 	void AddMesh(Mesh*& mesh) { m_meshList.push_back(mesh); }
 
@@ -38,7 +39,10 @@ public:
 	bool IsFaceSet(void) const { return m_isFaceSet; }
 	bool IsSketchGeometry(void) const { return !m_isFaceSet; }
 
-	bool IsHidden(void) const { return m_isHidden; }
+	bool IsRosette(void) const { return m_isRosette; }
+	bool IsSectionCap(void) const { return m_isSectionCap; }
+	
+	bool IsTessSolidModel(void) const { return m_isTessSolidModel; }
 
 	bool IsEmpty(void) const;
 	
@@ -64,7 +68,9 @@ private:
 	bool m_isTransparent;
 	bool m_isTessellated;
 	bool m_isFaceSet;
-	bool m_isHidden;
+	bool m_isRosette;
+	bool m_isSectionCap;
+	bool m_isTessSolidModel;
 
 	Component* m_component;
 	

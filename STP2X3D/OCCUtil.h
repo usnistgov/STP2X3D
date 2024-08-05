@@ -15,7 +15,7 @@ namespace OCCUtil
 	void RemoveFreeWires(TopoDS_Shape shape);
 
 	// Copy and return the shape 
-	const TopoDS_Shape& GetCopiedShape(const TopoDS_Shape& shape);
+	TopoDS_Shape GetCopiedShape(TopoDS_Shape shape);
 
 	// Check if the shape has faces
 	bool HasFace(const TopoDS_Shape& shape);
@@ -30,7 +30,7 @@ namespace OCCUtil
 	bool HasWire(const TopoDS_Shape& shape);
 
 	// Transform a shape
-	const TopoDS_Shape& TransformShape(const TopoDS_Shape& shape, const gp_Trsf& trsf);
+	TopoDS_Shape TransformShape(TopoDS_Shape shape, gp_Trsf trsf);
 
 	// Tessellate a shape
 	bool TessellateShape(const TopoDS_Shape& shape, double linearDeflection, bool isRelative, double angularDeflection, bool isParallel);

@@ -28,7 +28,8 @@ protected:
 	void Clear(void);
 
 	void ReadGDT(Model*& model) const;
-	void AddHiddenIShape(Component*& rootComp);
+	void AddRosettes(Component*& rootComp);
+	void AddSectionCaps(Component*& rootComp);
 
 private:
 	S2X_Option* m_opt;

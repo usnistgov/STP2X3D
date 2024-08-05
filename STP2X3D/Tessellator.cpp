@@ -68,7 +68,8 @@ void Tessellator::TessellateShape(IShape*& iShape) const
 {
 	if (m_opt->Tessellation()
 		|| (m_opt->SFA()
-			&& iShape->IsHidden()))
+			&& (iShape->IsRosette()
+				|| iShape->IsSectionCap())))
 	{
 		const TopoDS_Shape& shape = iShape->GetShape();
 
@@ -76,7 +77,8 @@ void Tessellator::TessellateShape(IShape*& iShape) const
 		double linDeflection = OCCUtil::GetDeflection(shape);
 
 		if (m_opt->SFA() // SFA-specific
-			&& iShape->IsHidden())
+			&& (iShape->IsRosette()
+				|| iShape->IsSectionCap()))
 			linDeflection = 0.1 * linDeflection;
 
 		// Tessellate and add mesh data of a shape
@@ -99,7 +101,7 @@ void Tessellator::AddMeshForFaceSet(IShape*& iShape) const
 	for (ExpFace.Init(shape, TopAbs_FACE); ExpFace.More(); ExpFace.Next())
 	{
 		const TopoDS_Face& face = TopoDS::Face(ExpFace.Current());
-		Mesh* mesh = GetMeshForFace(face);
+		Mesh* mesh = GetMeshForFace(face, iShape->IsTessSolidModel());
 
 		// Save the faceMesh
 		if (mesh)
@@ -128,7 +130,7 @@ void Tessellator::AddMeshForSketchGeometry(IShape*& iShape) const
 	iShape->SetTessellated(true);
 }
 
-Mesh* Tessellator::GetMeshForFace(const TopoDS_Face& face) const
+Mesh* Tessellator::GetMeshForFace(const TopoDS_Face& face, bool isTessSolidModel) const
 {
 	TopLoc_Location loc;
 
@@ -168,47 +170,106 @@ Mesh* Tessellator::GetMeshForFace(const TopoDS_Face& face) const
 
 		mesh->AddFaceIndex(n1, n2, n3);
 
-		if (m_opt->Normal())
+		if (m_opt->Normal()
+			&& !isTessSolidModel)
 			mesh->AddNormalIndex(n1, n2, n3);
 	}
 
 	// Add vertex normals
 	if (m_opt->Normal())
 	{
-		BRepGProp_Face gProp(face);
-		const Poly_ArrayOfUVNodes& uvNodes = myT->InternalUVNodes();
-		
-		for (int i = uvNodes.Lower(); i <= uvNodes.Upper(); ++i)
+		if (!isTessSolidModel)
 		{
-			const gp_Pnt2d& uv = uvNodes[i];
-			gp_Pnt pnt;
-			gp_Vec normal;
-			gProp.Normal(uv.X(), uv.Y(), pnt, normal);
+			BRepGProp_Face gProp(face);
+			const Poly_ArrayOfUVNodes& uvNodes = myT->InternalUVNodes();
 
-			if (normal.SquareMagnitude() > 0.0)
-				normal.Normalize();
+			for (int i = uvNodes.Lower(); i <= uvNodes.Upper(); ++i)
+			{
+				const gp_Pnt2d& uv = uvNodes[i];
+				gp_Pnt pnt;
+				gp_Vec normal;
+				gProp.Normal(uv.X(), uv.Y(), pnt, normal);
 
-			mesh->AddNormal(normal.XYZ());
+				if (normal.SquareMagnitude() > 0.0)
+					normal.Normalize();
+
+				mesh->AddNormal(normal.XYZ());
+			}
 		}
+		/*else
+		{
+			// For tessellated solids
+			if (m_opt->TessSolid())
+			{
+				int index = 1;
+
+				for (int i = 0; i < mesh->GetFaceIndexSize(); ++i)
+				{
+					vector<int> faceIndex = mesh->GetFaceIndexAt(i);
+
+					gp_XYZ p1 = mesh->GetCoordinateAt(faceIndex[0] - 1);
+					gp_XYZ p2 = mesh->GetCoordinateAt(faceIndex[1] - 1);
+					gp_XYZ p3 = mesh->GetCoordinateAt(faceIndex[2] - 1);
+
+					gp_XYZ n1 = (p2 - p1).Crossed((p3 - p1)).Normalized();
+					gp_XYZ n2 = (p3 - p2).Crossed((p1 - p2)).Normalized();
+					gp_XYZ n3 = (p1 - p3).Crossed((p2 - p3)).Normalized();
+
+					mesh->AddNormal(n1);
+					mesh->AddNormal(n2);
+					mesh->AddNormal(n3);
+
+					mesh->AddNormalIndex(index, index + 1, index + 2);
+					index = index + 3;
+				}
+			}
+		}*/
 	}
 
 	// Add boundary edges
 	if (m_opt->Edge())
 	{
-		TopExp_Explorer ExpEdge;
-		for (ExpEdge.Init(face, TopAbs_EDGE); ExpEdge.More(); ExpEdge.Next())
+		if (!isTessSolidModel)
 		{
-			const TopoDS_Edge& edge = TopoDS::Edge(ExpEdge.Current());
-			const Handle(Poly_PolygonOnTriangulation)& polygon = BRep_Tool::PolygonOnTriangulation(edge, myT, loc);
-			const TColStd_Array1OfInteger& edgeNodes = polygon->Nodes();
+			TopExp_Explorer ExpEdge;
+			for (ExpEdge.Init(face, TopAbs_EDGE); ExpEdge.More(); ExpEdge.Next())
+			{
+				const TopoDS_Edge& edge = TopoDS::Edge(ExpEdge.Current());
+				const Handle(Poly_PolygonOnTriangulation)& polygon = BRep_Tool::PolygonOnTriangulation(edge, myT, loc);
+				const TColStd_Array1OfInteger& edgeNodes = polygon->Nodes();
 
-			vector<int> edgeIndex;
+				vector<int> edgeIndex;
 
-			for (int i = edgeNodes.Lower(); i <= edgeNodes.Upper(); ++i)
-				edgeIndex.push_back(edgeNodes(i));
+				for (int i = edgeNodes.Lower(); i <= edgeNodes.Upper(); ++i)
+					edgeIndex.push_back(edgeNodes(i));
 
-			mesh->AddEdgeIndex(edgeIndex);
-			edgeIndex.clear();
+				mesh->AddEdgeIndex(edgeIndex);
+				edgeIndex.clear();
+			}
+		}
+		else
+		{
+			// For tessellated solids
+			if (m_opt->TessSolid())
+			{
+				for (int i = 0; i < mesh->GetFaceIndexSize(); ++i)
+				{
+					vector<int> faceIndex = mesh->GetFaceIndexAt(i);
+
+					vector<int> edgeIndex1, edgeIndex2, edgeIndex3;
+
+					edgeIndex1.push_back(faceIndex[0]);
+					edgeIndex1.push_back(faceIndex[1]);
+					edgeIndex2.push_back(faceIndex[1]);
+					edgeIndex2.push_back(faceIndex[2]);
+					edgeIndex3.push_back(faceIndex[2]);
+					edgeIndex3.push_back(faceIndex[0]);
+
+					mesh->AddEdgeIndex(edgeIndex1);
+					mesh->AddEdgeIndex(edgeIndex2);
+					mesh->AddEdgeIndex(edgeIndex3);
+				}
+			}
 		}
 	}
 	
@@ -281,7 +342,7 @@ void Tessellator::TessellateGDT(Model*& model) const
 			if (shapeType == TopAbs_FACE) // Find and add the face mesh
 			{
 				const TopoDS_Face& face = TopoDS::Face(shape);
-				Mesh* mesh = GetMeshForFace(face);
+				Mesh* mesh = GetMeshForFace(face, false);
 
 				// Save the face mesh
 				if (mesh)

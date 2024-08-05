@@ -64,7 +64,7 @@ bool STEP_Reader::ReadSTEP(Model* model)
 			// Get free shapes
 			TDF_LabelSequence labels_shapes;
 			m_shapeTool->GetFreeShapes(labels_shapes);
-
+			
 			// It's usually 1 for assemblies
 			int shapeSize = labels_shapes.Length();
 			
@@ -80,19 +80,21 @@ bool STEP_Reader::ReadSTEP(Model* model)
 
 				AddSubComponents(rootComp, label_shape);
 
-				if (i == 1
-					&& m_opt->Rosette())
-					AddHiddenIShape(rootComp);
+				if (i == 1)
+				{
+					AddRosettes(rootComp);
+					AddSectionCaps(rootComp);
+				}
 			}
 		}
 	}
-	catch (Standard_NumericError& e)
+	catch (Standard_Failure& e)
 	{
 		model->Clear();
 		UpdateColorOption();
 
 		const char* errMsg = e.GetMessageString();
-		cout << "\tStandard_NumericError(" << errMsg << ") occured." << endl;
+		cout << "\tStandard_Failure(" << errMsg << ") occured." << endl;
 		cout << "\tColor will not be supported." << endl;
 
 		// Read a STEP file
@@ -106,6 +108,8 @@ bool STEP_Reader::ReadSTEP(Model* model)
 
 		if (reader.TransferRoot())
 		{
+			//m_stepData = new STEP_Data(reader);
+			
 			const TopoDS_Shape& shape = reader.Shape();
 			IShape* iShape = new IShape(shape);
 
@@ -177,6 +181,10 @@ void STEP_Reader::AddSubComponents(Component*& comp, const TDF_Label& label)
 	{
 		const TopoDS_Shape& shape = m_shapeTool->GetShape(label);
 
+		if (!m_opt->TessSolid()
+			&& m_stepData->IsTessellatedSolidModel(shape))
+			return;
+
 		if (IsEmpty(shape))
 			return;
 
@@ -188,6 +196,10 @@ void STEP_Reader::AddSubComponents(Component*& comp, const TDF_Label& label)
 		{
 			IShape* iShape = new IShape(subShape);
 			iShape->SetStepID(m_stepData->GetEntityIDFromShape(subShape));	// STEP Entity ID
+			
+			if (m_stepData->IsTessellatedSolidModel(shape))
+				iShape->SetTessSolidModel(true);
+			
 			comp->AddIShape(iShape);
 
 			AddColors(iShape); // Add colors for each face OR edge
@@ -296,12 +308,19 @@ bool STEP_Reader::IsCopy(Component*& comp)
 
 bool STEP_Reader::IsEmpty(const TopoDS_Shape& shape) const
 {
-	if (shape.IsNull()
-		|| (m_opt->Sketch() && !OCCUtil::HasEdge(shape))	// If sketch is on, check edges
-		|| (!m_opt->Sketch() && !OCCUtil::HasFace(shape))) // If sketch is off, check faces
-		return true;
+	if (!shape.IsNull()
+		|| OCCUtil::HasFace(shape)
+		|| OCCUtil::HasEdge(shape))
+		return false;
 
-	return false;
+	return true;
+
+	//if (shape.IsNull()
+	//	|| (m_opt->Sketch() && !OCCUtil::HasEdge(shape))	// If sketch is on, check edges
+	//	|| (!m_opt->Sketch() && !OCCUtil::HasFace(shape))) // If sketch is off, check faces
+	//	return true;
+
+	//return false;
 }
 
 void STEP_Reader::AddColors(IShape*& iShape) const
@@ -530,10 +549,10 @@ void STEP_Reader::ReadGDT(Model*& model) const
 					gdt->AddShape(shape);
 				}
 
-				//const TopoDS_Shape& pptShape = aGeomObject->GetPresentation();
+				const TopoDS_Shape& pptShape = aGeomObject->GetPresentation();
 
-				//if (!pptShape.IsNull())
-				//	gdt->AddShape(pptShape);
+				if (!pptShape.IsNull())
+					gdt->AddShape(pptShape);
 			}
 		}
 	}
@@ -600,10 +619,10 @@ void STEP_Reader::ReadGDT(Model*& model) const
 					gdt->AddShape(shape);
 				}
 
-				//const TopoDS_Shape& pptShape = aDimObject->GetPresentation();
-
-				//if (!pptShape.IsNull())
-				//	gdt->AddShape(pptShape);
+				const TopoDS_Shape& pptShape = aDimObject->GetPresentation();
+				
+				if (!pptShape.IsNull())
+					gdt->AddShape(pptShape);
 			}
 		}
 	}
@@ -675,10 +694,9 @@ void STEP_Reader::ReadGDT(Model*& model) const
 					gdt->AddShape(shape);
 				}
 
-				//const TopoDS_Shape& pptShape = aDatumObject->GetPresentation();
-
-				//if (!pptShape.IsNull())
-				//	gdt->AddShape(pptShape);
+				const TopoDS_Shape& pptShape = aDatumObject->GetPresentation();
+				if (!pptShape.IsNull())
+					gdt->AddShape(pptShape);
 			}
 		}
 	}
@@ -690,26 +708,103 @@ void STEP_Reader::ReadGDT(Model*& model) const
 		m_opt->SetGDT(false);
 }
 
-void STEP_Reader::AddHiddenIShape(Component*& rootComp)
+void STEP_Reader::AddRosettes(Component*& rootComp)
 {
+	if (!m_opt->Rosette())
+		return;
+
+	vector<TopoDS_Shape> rosettes;
+	m_stepData->AddRosetteGeometries(rosettes);
+
 	TopoDS_Shape rootShape = rootComp->GetShape();
 
 	TopoDS_Compound compShape;
 	BRep_Builder aBuilder;
 	aBuilder.MakeCompound(compShape);
 	aBuilder.Add(compShape, rootShape);
-	
-	for (int i = 0; i < m_stepData->GetHiddenShapeSize(); ++i)
-	{
-		TopoDS_Shape hiddenShape = m_stepData->GetHiddenShapeAt(i);
-		aBuilder.Add(compShape, hiddenShape);
 
-		IShape* iShape = new IShape(hiddenShape);
-		iShape->SetHidden(true);
-		iShape->AddColor(hiddenShape, Quantity_ColorRGBA(Quantity_Color(1, 1, 1, Quantity_TOC_RGB))); // White
-		iShape->SetStepID(m_stepData->GetEntityIDFromShape(hiddenShape));	// STEP Entity ID
+	for (const auto& rosette : rosettes)
+	{
+		aBuilder.Add(compShape, rosette);
+
+		IShape* iShape = new IShape(rosette);
+		iShape->SetRosette(true);
+
+		Quantity_ColorRGBA color = Quantity_ColorRGBA(Quantity_Color(1, 1, 1, Quantity_TOC_RGB));
+		int rosetteID = m_stepData->GetEntityIDFromShape(rosette);
+		wstring rosetteName = StrTool::str2wstr(m_stepData->GetEntityNameFromShape(rosette));
+
+		iShape->AddColor(rosette, color); // White
+		iShape->SetStepID(rosetteID);	// STEP Entity ID
+		iShape->SetName(rosetteName);	// STEP Entity Name
 
 		rootComp->AddIShape(iShape);
+	}
+
+	rootComp->SetShape(compShape);
+}
+
+void STEP_Reader::AddSectionCaps(Component*& rootComp)
+{
+	if (!m_opt->SectionCap())
+		return;
+
+	vector<Component*> comps;
+	rootComp->GetLeafComponents(comps);
+
+	vector<TopoDS_Shape> planeShapes;
+	m_stepData->AddSectionPlanes(planeShapes);
+
+	TopoDS_Shape rootShape = rootComp->GetShape();
+
+	TopoDS_Compound compShape;
+	BRep_Builder aBuilder;
+	aBuilder.MakeCompound(compShape);
+	aBuilder.Add(compShape, rootShape);
+
+	for (const auto& planeShape : planeShapes)
+	{
+		for (const auto& comp : comps)
+		{
+			TopoDS_Shape shape = comp->GetTransformedShape();
+
+			//if (comp->IsCopy())
+			//	shape = comp->GetTransformedShape();
+			//else
+			//	shape = comp->GetShape();
+
+			if (!OCCUtil::HasFace(shape))
+				continue;
+
+			TopoDS_Shape capShape;
+
+			try {
+				BRepAlgoAPI_Common common(shape, planeShape);
+				capShape = common.Shape();
+
+				if (!OCCUtil::HasFace(capShape))
+					continue;
+
+				aBuilder.Add(compShape, capShape);
+
+				IShape* iCapShape = new IShape(capShape);
+				iCapShape->SetSectionCap(true);
+
+				Quantity_ColorRGBA color;					
+				color = Quantity_ColorRGBA(Quantity_Color(0.65, 0.65, 0.7, Quantity_TOC_RGB));
+
+				int planeID = m_stepData->GetEntityIDFromShape(planeShape);
+				wstring planeName = StrTool::str2wstr(m_stepData->GetEntityNameFromShape(planeShape));
+
+				iCapShape->AddColor(capShape, color);
+				iCapShape->SetStepID(planeID);	// STEP Entity ID
+				iCapShape->SetName(planeName);	// STEP Entity Name
+
+				rootComp->AddIShape(iCapShape);
+			}
+			catch (...) {
+			}
+		}
 	}
 
 	rootComp->SetShape(compShape);

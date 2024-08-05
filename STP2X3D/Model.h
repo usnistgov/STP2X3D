@@ -14,6 +14,7 @@ public:
 	const int GetRootComponentSize(void) const { return (int)m_rootComponents.size(); }
 
 	void GetAllComponents(vector<Component*>& comps) const;
+	void GetLeafComponents(vector<Component*>& comps) const;
 	const Bnd_Box GetBoundingBox(bool sketch) const;
 	const ShapeType GetShapeType(void) const;
 

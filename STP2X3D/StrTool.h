@@ -72,4 +72,17 @@ public:
 		return ws;
 	}
 
+	static const string ToLower(string s)
+	{
+		transform(s.begin(), s.end(), s.begin(), ::tolower);
+
+		return s;
+	}
+
+	static const string ToUpper(string s)
+	{
+		transform(s.begin(), s.end(), s.begin(), ::toupper);
+
+		return s;
+	}
 };

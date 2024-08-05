@@ -11,7 +11,9 @@ IShape::IShape(const TopoDS_Shape& shape)
 	m_isMultiTransparent(false),
 	m_isTransparent(false),
 	m_isFaceSet(false),
-	m_isHidden(false),
+	m_isRosette(false),
+	m_isSectionCap(false),
+	m_isTessSolidModel(false),
 	m_component(nullptr),
 	m_globalIndex(0),
 	m_stepID(-1)

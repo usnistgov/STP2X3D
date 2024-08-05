@@ -72,7 +72,7 @@ public:
 				
 				if (iShape->IsSketchGeometry())
 				{
-					if (iShape->IsHidden())
+					if (iShape->IsRosette())
 						rosetteCount++;
 					else
 						sketchCount++;

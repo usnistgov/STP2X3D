@@ -4,6 +4,7 @@
 
 S2X_Option::S2X_Option()
     : m_input(L""),
+    m_output(L""),
     m_normal(false),
     m_color(true),
     m_edge(false),
@@ -14,7 +15,9 @@ S2X_Option::S2X_Option()
     m_batch(-1),
     m_SFA(true),
     m_gdt(false),
-    m_rosette(false)
+    m_rosette(false),
+    m_cap(false),
+    m_tessSolid(true)
 {
 }
 
@@ -70,14 +73,15 @@ void S2X_Option::SetTessellation(const int& tessellation)
         m_tessellation = true;
 }
 
-const wstring S2X_Option::Output(void) const
+const wstring S2X_Option::Output(void)
 {
-    wstring output = m_input.substr(0, m_input.find_last_of(L"."));
+    if (m_output.empty())
+        m_output = m_input.substr(0, m_input.find_last_of(L"."));
     
     if (m_html)
-        output.append(L".html");
+        m_output.append(L".html");
     else
-        output.append(L".x3d");
+        m_output.append(L".x3d");
 
-    return output;
+    return m_output;
 }

@@ -7,6 +7,7 @@ public:
 	~S2X_Option();
 
 	void SetInput(const wstring& input) { m_input = input; }
+	void SetOutput(const wstring& output) { m_output = output; }
 	void SetNormal(const int& normal);
 	void SetColor(const int& color);
 	void SetEdge(const int& edge);
@@ -18,9 +19,11 @@ public:
 	void SetSFA(bool sfa) { m_SFA = sfa; }
 	void SetGDT(bool gdt) { m_gdt = gdt; }
 	void SetRosette(bool rosette) { m_rosette = rosette; }
+	void SetSectionCap(bool cap) { m_cap = cap; }
+	void SetTessSolid(bool tessSolid) { m_tessSolid = tessSolid; }
 
 	const wstring& Input(void) const { return m_input; }
-	const wstring Output(void) const;
+	const wstring Output(void);
 	bool Normal(void) const { return m_normal; }
 	bool Color(void) const { return m_color; }
 	bool Edge(void) const { return m_edge; }
@@ -32,12 +35,15 @@ public:
 	bool SFA(void) const { return m_SFA; }
 	bool GDT(void) const { return m_gdt; }
 	bool Rosette(void) const { return m_rosette; }
+	bool SectionCap(void) const { return m_cap; }
+	bool TessSolid(void) const { return m_tessSolid; }
 
-	// Software version (as of Feb 2022)
-	const wstring Version(void) const { return L"1.21"; }
+	// Software version (as of June 2023)
+	const wstring Version(void) const { return L"1.30"; }
 
 private:
 	wstring m_input;	// Input file path
+	wstring m_output;	// Output file path
 	bool m_normal;		// Normal
 	bool m_color;		// Color
 	bool m_edge;		// Boundary edge
@@ -49,4 +55,6 @@ private:
 	bool m_SFA;			// Specific to SFA
 	bool m_gdt;			// GD&T option
 	bool m_rosette;		// Rosette used in Composite Design
+	bool m_cap;			// Section Cap
+	bool m_tessSolid;	// Tessellated Solid
 };
