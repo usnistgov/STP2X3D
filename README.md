@@ -4,6 +4,10 @@ The NIST [STEP to X3D Translator](https://www.nist.gov/services-resources/softwa
 ## Prerequisites
 - [Open CASCADE Technology](https://www.opencascade.com/content/latest-release) (OCCT) 7.8.0 or higher
   - You must [rebuild the OCCT solution](https://dev.opencascade.org/doc/overview/html/build_upgrade__building_occt.html) to regenerate DLL files.
+  - For Linux users, you can easily install OpenCASCADE running the following command at the project's root directory:
+       ```sh
+       bash install_opencascade.sh
+       ```
     - vc14 or higher (x64) should be selected.
   - The complete set of DLL files required for STP2X3D to run is as follows.
     - OCCT related: freetype.dll, jemalloc.dll, TKBO.dll, TKBRep.dll, TKCAF.dll, TKCDF.dll, TKDE.dll, TKDESTEP.dll, TKernel.dll, TKG2d.dll, TKG3d.dll, TKGeomAlgo.dll, TKGeomBase.dll, TKHLR.dll, TKLCAF.dll. TKMath.dll, TKMesh.dll, TKPrim.dll, TKService.dll, TKShHealing.dll, TKTopAlgo.dll, TKV3d.dll, TKVCAF.dll, TKXCAF.dll, TKXSBase.dll
