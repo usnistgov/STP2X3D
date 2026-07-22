@@ -5,6 +5,7 @@ using namespace std;
 
 #include <string>
 #include <vector>
+#include <array>
 #include <numeric>
 #include <sstream>
 #include <map>

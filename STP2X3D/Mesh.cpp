@@ -7,6 +7,16 @@ Mesh::Mesh(const TopoDS_Shape& shape)
 {
 }
 
+Mesh::Mesh(const Mesh& mesh)
+	: m_shape(mesh.m_shape)
+	, m_coordinates(mesh.m_coordinates)
+	, m_normals(mesh.m_normals)
+	, m_faceIndexes(mesh.m_faceIndexes)
+	, m_normalIndexes(mesh.m_normalIndexes)
+	, m_edgeIndexes(mesh.m_edgeIndexes)
+{
+}
+
 Mesh::~Mesh(void)
 {
 	Clear();
@@ -14,27 +24,17 @@ Mesh::~Mesh(void)
 
 void Mesh::AddFaceIndex(int v1, int v2, int v3)
 {
-	Index m_index;
-	m_index.push_back(v1);
-	m_index.push_back(v2);
-	m_index.push_back(v3);
-
-	m_faceIndexes.push_back(m_index);
+	m_faceIndexes.push_back({ v1, v2, v3 });
 }
 
 void Mesh::AddNormalIndex(int v1, int v2, int v3)
 {
-	Index m_index;
-	m_index.push_back(v1);
-	m_index.push_back(v2);
-	m_index.push_back(v3);
-
-	m_normalIndexes.push_back(m_index);
+	m_normalIndexes.push_back({ v1, v2, v3 });
 }
 
-void Mesh::AddEdgeIndex(Index edgeIndex)
+void Mesh::AddEdgeIndex(EdgeIndex edgeIndex)
 {
-	m_edgeIndexes.push_back(edgeIndex);
+	m_edgeIndexes.push_back(std::move(edgeIndex));
 }
 
 bool Mesh::IsEmpty(void) const
@@ -47,15 +47,6 @@ bool Mesh::IsEmpty(void) const
 
 void Mesh::Clear(void)
 {
-	for (auto faceIndex : m_faceIndexes)
-		faceIndex.clear();
-
-	for (auto normalIndex : m_normalIndexes)
-		normalIndex.clear();
-	
-	for (auto edgeIndex : m_edgeIndexes)
-		edgeIndex.clear();
-
 	m_faceIndexes.clear();
 	m_normalIndexes.clear();
 	m_edgeIndexes.clear();

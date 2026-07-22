@@ -5,6 +5,22 @@
 #include "Mesh.h"
 #include "GDT_Item.h"
 
+#include <cstring>
+#include <cstdint>
+
+namespace
+{
+// X3D Material colors are display (sRGB) values; OCCT stores linear RGB internally.
+void AppendDisplayColor(X3D_Text& out, const Quantity_Color& color)
+{
+	double r, g, b;
+	color.Values(r, g, b, Quantity_TOC_sRGB);
+	out << NumTool::DoubleToWString(r) << " ";
+	out << NumTool::DoubleToWString(g) << " ";
+	out << NumTool::DoubleToWString(b);
+}
+}
+
 X3D_Writer::X3D_Writer(S2X_Option* opt)
 	: m_opt(opt)
 {
@@ -28,40 +44,40 @@ X3D_Writer::~X3D_Writer(void)
 	Clear();
 }
 
-void X3D_Writer::WriteX3D(Model*& model)
+bool X3D_Writer::WriteX3D(Model*& model)
 {
-	wstringstream ss_x3d;
-	
+	wstring filePath = m_opt->Output();
+	X3D_Text out(filePath);
+
+	if (!out.IsOpen())
+	{
+		wcerr << "Unable to open X3D output file: " << filePath << endl;
+		return false;
+	}
+
 	// Initial indent level
 	int level = 0;
 
 	// Open header
-	ss_x3d << OpenHeader();
+	OpenHeader(out);
 
 	// Write viewpoint
-	ss_x3d << WriteViewpoint(model, level + 1);
+	WriteViewpoint(out, model, level + 1);
 
 	// Write model
-	ss_x3d << WriteModel(model, level + 1);
+	WriteModel(out, model, level + 1);
 
 	// Write GDT geometries
 	if (m_opt->GDT())
-		ss_x3d << WriteGDT(model, level + 1);
+		WriteGDT(out, model, level + 1);
 
 	// Close header
-	ss_x3d << CloseHeader();
-
-	// Write X3D file
-	wstring filePath = m_opt->Output();
-
-	wofstream wof;
-
-	// This line is required to write Unicode characters.
-	wof.imbue(locale(locale::empty(), new codecvt_utf8<wchar_t, 0x10ffff, generate_header>)); 
-	
-	wof.open(filePath.c_str());
-	wof << ss_x3d.str().c_str();
-	wof.close();
+	CloseHeader(out);
+	if (!out.Close())
+	{
+		wcerr << "Failed to write X3D output file: " << filePath << endl;
+		return false;
+	}
 
 	/// Print results required for SFA
 	if (m_opt->SFA())
@@ -71,64 +87,55 @@ void X3D_Writer::WriteX3D(Model*& model)
 	}
 	///
 
-	ss_x3d.clear();
+	return true;
 }
 
-wstring X3D_Writer::OpenHeader(void) const
+void X3D_Writer::OpenHeader(X3D_Text& out) const
 {
-	wstringstream ss_hd;
-
 	if (m_opt->Html())
 	{
-		ss_hd << "<html>\n";
-		ss_hd << "<head>\n";
-		//ss_hd << " <link rel='stylesheet' type='text/css' href='https://www.x3dom.org/x3dom/release/x3dom.css'/>\n";
-		//ss_hd << " <script type='text/javascript' src='https://www.x3dom.org/x3dom/release/x3dom.js'></script>\n";
-		ss_hd << " <link rel='stylesheet' type='text/css' href='https://www.x3dom.org/download/1.8.3/x3dom.css'/>\n";
-		ss_hd << " <script type='text/javascript' src='https://www.x3dom.org/download/1.8.3/x3dom.js'></script>\n";
-		ss_hd << "</head>\n";
-		ss_hd << "<body>\n";
+		out << "<html>\n";
+		out << "<head>\n";
+		//out << " <link rel='stylesheet' type='text/css' href='https://www.x3dom.org/x3dom/release/x3dom.css'/>\n";
+		//out << " <script type='text/javascript' src='https://www.x3dom.org/x3dom/release/x3dom.js'></script>\n";
+		out << " <link rel='stylesheet' type='text/css' href='https://www.x3dom.org/download/1.8.3/x3dom.css'/>\n";
+		out << " <script type='text/javascript' src='https://www.x3dom.org/download/1.8.3/x3dom.js'></script>\n";
+		out << "</head>\n";
+		out << "<body>\n";
 	}
 	else
 	{
-		ss_hd << "<?xml version='1.0' encoding='UTF-8'?>\n";
+		out << "<?xml version='1.0' encoding='UTF-8'?>\n";
 	}
 
-	ss_hd << "<X3D version='3.3'>\n";
-	ss_hd << "<head>\n";
-	ss_hd << " <meta name='Generator' content='NIST STP2X3D Translator " << m_opt->Version() << "'/>\n";
-	ss_hd << "</head>\n";
-	ss_hd << "<Scene>\n";
-
-	return ss_hd.str();
+	out << "<X3D version='3.3'>\n";
+	out << "<head>\n";
+	out << " <meta name='Generator' content='NIST STP2X3D Translator " << m_opt->Version() << "'/>\n";
+	out << "</head>\n";
+	out << "<Scene>\n";
 }
 
-wstring X3D_Writer::CloseHeader(void) const
+void X3D_Writer::CloseHeader(X3D_Text& out) const
 {
-	wstringstream ss_hd;
-	
-	ss_hd << "</Scene>\n";
-	ss_hd << "</X3D>";
+	out << "</Scene>\n";
+	out << "</X3D>";
 
 	if (m_opt->Html())
 	{
-		ss_hd << "\n";
-		ss_hd << "</body>\n";
-		ss_hd << "</html>";
+		out << "\n";
+		out << "</body>\n";
+		out << "</html>";
 	}
-
-	return ss_hd.str();
 }
 
-wstring X3D_Writer::WriteViewpoint(Model*& model, int level) const
+void X3D_Writer::WriteViewpoint(X3D_Text& out, Model*& model, int level) const
 {
 	if (!m_opt->Html())
-		return L"";
+		return;
 
-	wstringstream ss_vp;
-
-	Bnd_Box bndBox = model->GetBoundingBox(m_opt->Sketch());	
-	assert(!bndBox.IsVoid());
+	Bnd_Box bndBox = model->GetBoundingBox(m_opt->Sketch());
+	if (bndBox.IsVoid())
+		return;
 
 	double X_min = 0.0, Y_min = 0.0, Z_min = 0.0;
 	double X_max = 0.0, Y_max = 0.0, Z_max = 0.0;
@@ -162,38 +169,34 @@ wstring X3D_Writer::WriteViewpoint(Model*& model, int level) const
 		&& Z_gap >= Y_gap)
 		Y_pos = (-2) * Z_gap;
 
-	ss_vp << Indent(level);
-	ss_vp << "<Viewpoint";
+	out << Indent(level);
+	out << "<Viewpoint";
 
-	ss_vp << " position='";
-	ss_vp << NumTool::DoubleToWString(X_pos) << " ";
-	ss_vp << NumTool::DoubleToWString(Y_pos) << " ";
-	ss_vp << NumTool::DoubleToWString(Z_pos) << "'";
+	out << " position='";
+	out << NumTool::DoubleToWString(X_pos) << " ";
+	out << NumTool::DoubleToWString(Y_pos) << " ";
+	out << NumTool::DoubleToWString(Z_pos) << "'";
 
-	ss_vp << " orientation='";
-	ss_vp << NumTool::DoubleToWString(X_ori) << " ";
-	ss_vp << NumTool::DoubleToWString(Y_ori) << " ";
-	ss_vp << NumTool::DoubleToWString(Z_ori) << " ";
-	ss_vp << NumTool::DoubleToWString(R_ori) << "'";
+	out << " orientation='";
+	out << NumTool::DoubleToWString(X_ori) << " ";
+	out << NumTool::DoubleToWString(Y_ori) << " ";
+	out << NumTool::DoubleToWString(Z_ori) << " ";
+	out << NumTool::DoubleToWString(R_ori) << "'";
 
-	ss_vp << " centerOfRotation='";
-	ss_vp << NumTool::DoubleToWString(X_mean) << " ";
-	ss_vp << NumTool::DoubleToWString(Y_mean) << " ";
-	ss_vp << NumTool::DoubleToWString(Z_mean) << "'";
+	out << " centerOfRotation='";
+	out << NumTool::DoubleToWString(X_mean) << " ";
+	out << NumTool::DoubleToWString(Y_mean) << " ";
+	out << NumTool::DoubleToWString(Z_mean) << "'";
 
-	ss_vp << "></Viewpoint>\n";
-
-	return ss_vp.str();
+	out << "></Viewpoint>\n";
 }
 
-wstring X3D_Writer::WriteModel(Model*& model, int level)
+void X3D_Writer::WriteModel(X3D_Text& out, Model*& model, int level)
 {
-	wstringstream ss_model;
-	
 	if (model->GetRootComponentSize() >= 2)
 	{
-		ss_model << Indent(level);
-		ss_model << "<Group>\n";
+		out << Indent(level);
+		out << "<Group>\n";
 		CountIndent(level);
 	}
 	else
@@ -210,40 +213,36 @@ wstring X3D_Writer::WriteModel(Model*& model, int level)
 			&& rootComp->GetIShapeAt(0)->IsSketchGeometry())
 		{
 			IShape* shape = rootComp->GetIShapeAt(0);
-			ss_model << WriteSketchGeometry(shape, level + 1);
+			WriteSketchGeometry(out, shape, level + 1);
 		}
 		else
 		{
-			ss_model << Indent(level + 1);
-			ss_model << "<Group";
+			out << Indent(level + 1);
+			out << "<Group";
 			
 			if (m_opt->SFA() 
 				&& m_opt->GDT())
-				ss_model << " id='geometry'"; 
+				out << " id='geometry'"; 
 			
-			ss_model << " DEF='" << rootComp->GetName() << "'>\n";
+			out << " DEF='" << rootComp->GetName() << "'>\n";
 			CountIndent(level + 1);
 			
-			ss_model << WriteComponent(rootComp, level + 1);
+			WriteComponent(out, rootComp, level + 1);
 			
-			ss_model << Indent(level + 1);
-			ss_model << "</Group>\n";
+			out << Indent(level + 1);
+			out << "</Group>\n";
 		}
 	}
 	
 	if (model->GetRootComponentSize() >= 2)
 	{
-		ss_model << Indent(level);
-		ss_model << "</Group>\n";
+		out << Indent(level);
+		out << "</Group>\n";
 	}
-
-	return ss_model.str();
 }
 
-wstring X3D_Writer::WriteComponent(Component*& comp, int level)
+void X3D_Writer::WriteComponent(X3D_Text& out, Component*& comp, int level)
 {
-	wstringstream ss_comp;
-
 	for (int i = 0; i < comp->GetSubComponentSize(); ++i)
 	{
 		Component* subComp = comp->GetSubComponentAt(i);
@@ -251,15 +250,16 @@ wstring X3D_Writer::WriteComponent(Component*& comp, int level)
 		
 		if (isTransformed)
 		{
-			ss_comp << Indent(level + 1);
-			ss_comp << "<Transform";
+			out << Indent(level + 1);
+			out << "<Transform";
 			CountIndent(level + 1);
 
 			if (m_opt->SFA())
-				ss_comp << " id='" << subComp->GetName() << "'";
+				out << " id='" << subComp->GetName() << "'";
 			
 			// Transform attributes i.e. Translation and Rotation
-			ss_comp << WriteTransformAttributes(subComp->GetTransformation()) << ">\n";
+			WriteTransformAttributes(out, subComp->GetTransformation());
+			out << ">\n";
 		}
 		else
 			level--;
@@ -272,19 +272,19 @@ wstring X3D_Writer::WriteComponent(Component*& comp, int level)
 				&& subComp->GetOriginalComponent()->GetIShapeAt(0)->IsSketchGeometry())
 			{
 				IShape* shape = subComp->GetOriginalComponent()->GetIShapeAt(0);
-				ss_comp << WriteSketchGeometry(shape, level + 2);
+				WriteSketchGeometry(out, shape, level + 2);
 			}
 			else
 			{
 				wstring orgCompName = subComp->GetOriginalComponent()->GetName();
 
-				ss_comp << Indent(level + 2);
-				ss_comp << "<Group USE='" << orgCompName;
+				out << Indent(level + 2);
+				out << "<Group USE='" << orgCompName;
 				
 				if (m_opt->SFA())
-					ss_comp << "'></Group>\n";
+					out << "'></Group>\n";
 				else
-					ss_comp << "'/>\n";
+					out << "'/>\n";
 
 				CountIndent(level + 2);
 			}
@@ -297,31 +297,31 @@ wstring X3D_Writer::WriteComponent(Component*& comp, int level)
 				&& subComp->GetIShapeAt(0)->IsSketchGeometry())
 			{
 				IShape* shape = subComp->GetIShapeAt(0);
-				ss_comp << WriteSketchGeometry(shape, level + 2);
+				WriteSketchGeometry(out, shape, level + 2);
 			}
 			else
 			{
-				ss_comp << Indent(level + 2);
-				ss_comp << "<Group";
+				out << Indent(level + 2);
+				out << "<Group";
 				
 				if (m_opt->SFA()
 					&& subComp->GetStepID() != -1)
-					ss_comp << " id='msb " << subComp->GetStepID() << "'";
+					out << " id='msb " << subComp->GetStepID() << "'";
 
-				ss_comp << " DEF='" << subComp->GetName() << "'>\n";
+				out << " DEF='" << subComp->GetName() << "'>\n";
 				CountIndent(level + 2);
 
-				ss_comp << WriteComponent(subComp, level + 2); // Recursive call
+				WriteComponent(out, subComp, level + 2); // Recursive call
 
-				ss_comp << Indent(level + 2);
-				ss_comp << "</Group>\n";
+				out << Indent(level + 2);
+				out << "</Group>\n";
 			}
 		}
 
 		if (isTransformed)
 		{
-			ss_comp << Indent(level + 1);
-			ss_comp << "</Transform>\n";
+			out << Indent(level + 1);
+			out << "</Transform>\n";
 		}
 		else
 			level++;
@@ -338,7 +338,7 @@ wstring X3D_Writer::WriteComponent(Component*& comp, int level)
 
 		try
 		{
-			ss_comp << WriteShape(iShape, level + 1);
+			WriteShape(out, iShape, level + 1);
 		}
 		catch (...)
 		{
@@ -348,27 +348,23 @@ wstring X3D_Writer::WriteComponent(Component*& comp, int level)
 
 	if (m_opt->Rosette()
 		&& comp->HasRosette())
-		ss_comp << WriteRosetteGeometry(comp, level + 1);
+		WriteRosetteGeometry(out, comp, level + 1);
 
 	if (m_opt->SectionCap()
 		&& comp->HasSectionCap())
-		ss_comp << WriteSectionCapGeometry(comp, level + 1);
-
-	return ss_comp.str();
+		WriteSectionCapGeometry(out, comp, level + 1);
 }
 
-wstring X3D_Writer::WriteTransformAttributes(const gp_Trsf& trsf) const
+void X3D_Writer::WriteTransformAttributes(X3D_Text& out, const gp_Trsf& trsf) const
 {
-	wstringstream ss_trsf;
-
 	if (OCCUtil::IsTranslated(trsf))
 	{
 		const gp_XYZ& trans = trsf.TranslationPart();
 
-		ss_trsf << " translation='";
-		ss_trsf << NumTool::DoubleToWString(trans.X()) << " ";
-		ss_trsf << NumTool::DoubleToWString(trans.Y()) << " ";
-		ss_trsf << NumTool::DoubleToWString(trans.Z()) << "'";
+		out << " translation='";
+		out << NumTool::DoubleToWString(trans.X()) << " ";
+		out << NumTool::DoubleToWString(trans.Y()) << " ";
+		out << NumTool::DoubleToWString(trans.Z()) << "'";
 	}
 
 	if (OCCUtil::IsRotated(trsf))
@@ -377,96 +373,88 @@ wstring X3D_Writer::WriteTransformAttributes(const gp_Trsf& trsf) const
 		double rotAngle = 0.0;
 		trsf.GetRotation().GetVectorAndAngle(rotAxis, rotAngle);
 
-		ss_trsf << " rotation='";
-		ss_trsf << NumTool::DoubleToWString(rotAxis.X()) << " ";
-		ss_trsf << NumTool::DoubleToWString(rotAxis.Y()) << " ";
-		ss_trsf << NumTool::DoubleToWString(rotAxis.Z()) << " ";
-		ss_trsf << NumTool::DoubleToWString(rotAngle) << "'";
+		out << " rotation='";
+		out << NumTool::DoubleToWString(rotAxis.X()) << " ";
+		out << NumTool::DoubleToWString(rotAxis.Y()) << " ";
+		out << NumTool::DoubleToWString(rotAxis.Z()) << " ";
+		out << NumTool::DoubleToWString(rotAngle) << "'";
 	}
-
-	return ss_trsf.str();
 }
 
-wstring X3D_Writer::WriteShape(IShape*& iShape, int level)
+void X3D_Writer::WriteShape(X3D_Text& out, IShape*& iShape, int level)
 {
-	wstringstream ss_shape;
-		
 	if (iShape->IsFaceSet())
 	{
 		wstring shapeId = iShape->GetUniqueName();
 		
-		ss_shape << Indent(level);
-		ss_shape << "<Shape";
+		out << Indent(level);
+		out << "<Shape";
 
 		if (m_opt->SFA())
-			ss_shape << " id='" << shapeId << "'";
+			out << " id='" << shapeId << "'";
 
-		ss_shape << " DEF='" << iShape->GetName() << "'";
-		ss_shape << ">\n";
+		out << " DEF='" << iShape->GetName() << "'";
+		out << ">\n";
 
-		ss_shape << WriteIndexedFaceSet(iShape, level + 1);
+		WriteIndexedFaceSet(out, iShape, level + 1);
 
-		ss_shape << Indent(level);
-		ss_shape << "</Shape>\n";
+		out << Indent(level);
+		out << "</Shape>\n";
 
 		if (m_opt->Edge()) // Boundary edges
 		{
-			ss_shape << Indent(level);
-			ss_shape << "<Shape";
+			out << Indent(level);
+			out << "<Shape";
 
 			if (m_opt->SFA())
-				ss_shape << " id='" << shapeId << "'";
+				out << " id='" << shapeId << "'";
 
-			ss_shape << " DEF='" << iShape->GetName() << "_edges'";
-			ss_shape << ">\n";
+			out << " DEF='" << iShape->GetName() << "_edges'";
+			out << ">\n";
 
-			ss_shape << WriteIndexedLineSet(iShape, level + 1);
+			WriteIndexedLineSet(out, iShape, level + 1);
 
-			ss_shape << Indent(level);
-			ss_shape << "</Shape>\n";
+			out << Indent(level);
+			out << "</Shape>\n";
 		}
 	}
 	else // Sketch geometry
 	{
-		ss_shape << Indent(level);
-		ss_shape << "<Shape";
+		out << Indent(level);
+		out << "<Shape";
 
 		if (m_opt->SFA()
 			&& iShape->GetStepID() != -1
 			&& iShape->IsRosette())
-			ss_shape << " id='curve 11 " << iShape->GetStepID() << "'";
+			out << " id='curve 11 " << iShape->GetStepID() << "'";
 
 		if (!m_opt->SFA())
-			ss_shape << " DEF='" << iShape->GetName() << "'";
+			out << " DEF='" << iShape->GetName() << "'";
 
-		ss_shape << ">\n";
+		out << ">\n";
 
-		ss_shape << WriteIndexedLineSet(iShape, level + 1);
+		WriteIndexedLineSet(out, iShape, level + 1);
 
-		ss_shape << Indent(level);
-		ss_shape << "</Shape>\n";
+		out << Indent(level);
+		out << "</Shape>\n";
 	}
-
-	return ss_shape.str();
 }
 
-wstring X3D_Writer::WriteIndexedFaceSet(IShape*& iShape, int level)
+void X3D_Writer::WriteIndexedFaceSet(X3D_Text& out, IShape*& iShape, int level)
 {
-	wstringstream ss_ifs;
-
 	bool isMultiColored = iShape->IsMultiColored();
 	bool isSingleTransparent = iShape->IsSingleTransparent();
 	double transparency = m_transparency;
 
 	// Write Appearance node
-	ss_ifs << Indent(level);
+	out << Indent(level);
 
 	if (isMultiColored)	// No diffuse color
 	{
 		if (isSingleTransparent)
 			transparency = 1.0 - iShape->GetColor().Alpha();
 
-		ss_ifs << WriteAppearance(iShape, m_diffuseColor, false,
+		WriteAppearance(out, iShape, m_diffuseColor, false,
 										m_emissiveColor, false,
 										m_specularColor, true,
 										m_shininess, true,
@@ -483,7 +471,7 @@ wstring X3D_Writer::WriteIndexedFaceSet(IShape*& iShape, int level)
 		if (isSingleTransparent)
 			transparency = 1.0 - color.Alpha();
 
-		ss_ifs << WriteAppearance(iShape, color.GetRGB(), true,
+		WriteAppearance(out, iShape, color.GetRGB(), true,
 										m_emissiveColor, false,
 										m_specularColor, true,
 										m_shininess, true,
@@ -495,59 +483,62 @@ wstring X3D_Writer::WriteIndexedFaceSet(IShape*& iShape, int level)
 	bool isTessSolidModel = iShape->IsTessSolidModel();
 
 	// Open IndexedFaceSet
-	ss_ifs << Indent(level);
-	ss_ifs << "<IndexedFaceSet";
+	out << Indent(level);
+	out << "<IndexedFaceSet";
 
 	if (!m_opt->Normal()
 		&& !isTessSolidModel)
-		ss_ifs << " creaseAngle='" << NumTool::DoubleToWString(m_creaseAngle) << "'";
+		out << " creaseAngle='" << NumTool::DoubleToWString(m_creaseAngle) << "'";
 	
-	ss_ifs << " solid='false'";
+	out << " solid='false'";
 
-	ss_ifs << WriteCoordinateIndex(iShape, true);
+	WriteCoordinateIndex(out, iShape, true);
 
 	if (m_opt->Normal()
 		&& !isSectionCap
 		&& !isTessSolidModel)
-		ss_ifs << WriteNormalIndex(iShape);
+		WriteNormalIndex(out, iShape);
 	
-	ss_ifs << ">\n";
+	out << ">\n";
 
 	// Write coordinates
-	ss_ifs << Indent(level + 1);
-	ss_ifs << WriteCoordinate(iShape, false);
+	out << Indent(level + 1);
+	WriteCoordinate(out, iShape, false);
 
 	// Write normals
 	if (m_opt->Normal()
 		&& !isSectionCap
 		&& !isTessSolidModel)
 	{
-		ss_ifs << Indent(level + 1);
-		ss_ifs << WriteNormal(iShape);
+		out << Indent(level + 1);
+		WriteNormal(out, iShape);
 	}
 
 	// Write colors
 	if (isMultiColored)
 	{
-		ss_ifs << Indent(level + 1);
-		ss_ifs << WriteColor(iShape);
+		out << Indent(level + 1);
+		WriteColor(out, iShape);
 	}
 
 	// Close IndexedFaceSet
-	ss_ifs << Indent(level);
-	ss_ifs << "</IndexedFaceSet>\n";
-
-	return ss_ifs.str();
+	out << Indent(level);
+	out << "</IndexedFaceSet>\n";
 }
 
-wstring X3D_Writer::WriteIndexedLineSet(IShape*& iShape, int level)
+void X3D_Writer::WriteIndexedLineSet(X3D_Text& out, IShape*& iShape, int level)
 {
-	wstringstream ss_ils;
-
 	bool isMultiColored = iShape->IsMultiColored();
 
 	// Write Appearance node
-	if (iShape->IsSketchGeometry())
+	if (iShape->IsRosette())
+	{
+		// Keep composite rosette appearance independent of edge materials.
+		// Do not reuse Appearance via USE/DEF; viewers treat edge app IDs separately.
+		out << Indent(level);
+		out << "<Appearance><Material emissiveColor='0 0 0'></Material></Appearance>\n";
+	}
+	else if (iShape->IsSketchGeometry())
 	{
 		if (!isMultiColored)
 		{
@@ -556,8 +547,8 @@ wstring X3D_Writer::WriteIndexedLineSet(IShape*& iShape, int level)
 			if (m_opt->Color())
 				color = iShape->GetColor();
 
-			ss_ils << Indent(level);
-			ss_ils << WriteAppearance(iShape, m_diffuseColor, false,
+			out << Indent(level);
+			WriteAppearance(out, iShape, m_diffuseColor, false,
 											color.GetRGB(), true,
 											m_specularColor, false,
 											m_shininess, false,
@@ -569,8 +560,8 @@ wstring X3D_Writer::WriteIndexedLineSet(IShape*& iShape, int level)
 	{
 		Quantity_Color color(0.0, 0.0, 0.0, Quantity_TOC_RGB);
 
-		ss_ils << Indent(level);
-		ss_ils << WriteAppearance(iShape, m_diffuseColor, false,
+		out << Indent(level);
+		WriteAppearance(out, iShape, m_diffuseColor, false,
 										color, true,
 										m_specularColor, false,
 										m_shininess, false,
@@ -579,42 +570,39 @@ wstring X3D_Writer::WriteIndexedLineSet(IShape*& iShape, int level)
 	}
 
 	// Open IndexedLineSet
-	ss_ils << Indent(level);
-	ss_ils << "<IndexedLineSet";
-	ss_ils << WriteCoordinateIndex(iShape, false) << ">\n";
+	out << Indent(level);
+	out << "<IndexedLineSet";
+	WriteCoordinateIndex(out, iShape, false);
+	out << ">\n";
 
 	// Write coordinates
-	ss_ils << Indent(level + 1);
+	out << Indent(level + 1);
 	
 	if (iShape->IsSketchGeometry())
-		ss_ils << WriteCoordinate(iShape, false);
+		WriteCoordinate(out, iShape, false);
 	else
-		ss_ils << WriteCoordinate(iShape, true);
+		WriteCoordinate(out, iShape, true);
 
 	// Write colors
 	if (iShape->IsSketchGeometry()
 		&& isMultiColored)
 	{
-		ss_ils << Indent(level + 1);
-		ss_ils << WriteColor(iShape);
+		out << Indent(level + 1);
+		WriteColor(out, iShape);
 	}
 
 	// Close IndexedLineSet
-	ss_ils << Indent(level);
-	ss_ils << "</IndexedLineSet>\n";
-
-	return ss_ils.str();
+	out << Indent(level);
+	out << "</IndexedLineSet>\n";
 }
 
-wstring X3D_Writer::WriteAppearance(IShape*& iShape, const Quantity_Color& diffuseColor, bool isDiffuseOn,
+void X3D_Writer::WriteAppearance(X3D_Text& out, IShape*& iShape, const Quantity_Color& diffuseColor, bool isDiffuseOn,
 													const Quantity_Color& emissiveColor, bool isEmissiveOn,
 													const Quantity_Color& specularColor, bool isSpecularOn,
 													double& shininess, bool isShininessOn,
 													double& ambientIntensity, bool isAmbientIntensityOn,
 													double& transparency, bool isTransparencyOn)
 {
-	wstringstream ss_app;
-
 	int appID = 0;
 
 	//if (!m_opt->SFA()
@@ -629,87 +617,80 @@ wstring X3D_Writer::WriteAppearance(IShape*& iShape, const Quantity_Color& diffu
 			transparency, isTransparencyOn,
 			appID))
 		{
-			ss_app << "<Appearance USE='app" << to_wstring(appID) << "'></Appearance>\n";
-
-			return ss_app.str();
+			out << "<Appearance USE='app" << to_wstring(appID) << "'></Appearance>\n";
+			return;
 		}
 	//}
 
 	// Write Appearance node
-	ss_app << "<Appearance";
+	out << "<Appearance";
 
 	//if (!m_opt->SFA()
 	//	|| (m_opt->SFA() 
 	//		&& iShape->IsFaceSet()))
-		ss_app << " DEF='app" << to_wstring(appID) << "'";
+		out << " DEF='app" << to_wstring(appID) << "'";
 	
-	ss_app << "><Material";
+	out << "><Material";
 
 	if (m_opt->SFA()
 		//&& iShape->IsFaceSet()
 		)
-		ss_app << " id='mat" << to_wstring(appID) << "'";
+		out << " id='mat" << to_wstring(appID) << "'";
 
 	if (isDiffuseOn)
 	{
-		ss_app << " diffuseColor='";
-		ss_app << NumTool::DoubleToWString(diffuseColor.Red()) << " ";
-		ss_app << NumTool::DoubleToWString(diffuseColor.Green()) << " ";
-		ss_app << NumTool::DoubleToWString(diffuseColor.Blue()) << "'";
+		out << " diffuseColor='";
+		AppendDisplayColor(out, diffuseColor);
+		out << "'";
 	}
 
 	if (isEmissiveOn)
 	{
-		ss_app << " emissiveColor='";
-		ss_app << NumTool::DoubleToWString(emissiveColor.Red()) << " ";
-		ss_app << NumTool::DoubleToWString(emissiveColor.Green()) << " ";
-		ss_app << NumTool::DoubleToWString(emissiveColor.Blue()) << "'";
+		out << " emissiveColor='";
+		AppendDisplayColor(out, emissiveColor);
+		out << "'";
 	}
 
 	if (isSpecularOn)
 	{
-		ss_app << " specularColor='";
-		ss_app << NumTool::DoubleToWString(specularColor.Red()) << " ";
-		ss_app << NumTool::DoubleToWString(specularColor.Green()) << " ";
-		ss_app << NumTool::DoubleToWString(specularColor.Blue()) << "'";
+		out << " specularColor='";
+		AppendDisplayColor(out, specularColor);
+		out << "'";
 	}
 
 	if (isShininessOn)
 	{
-		ss_app << " shininess='";
-		ss_app << NumTool::DoubleToWString(shininess) << "'";
+		out << " shininess='";
+		out << NumTool::DoubleToWString(shininess) << "'";
 	}
 
 	if (isAmbientIntensityOn)
 	{
-		ss_app << " ambientIntensity='";
-		ss_app << NumTool::DoubleToWString(ambientIntensity) << "'";
+		out << " ambientIntensity='";
+		out << NumTool::DoubleToWString(ambientIntensity) << "'";
 	}
 
 	if (isTransparencyOn)
 	{
-		ss_app << " transparency='";
-		ss_app << NumTool::DoubleToWString(transparency) << "'";
+		out << " transparency='";
+		out << NumTool::DoubleToWString(transparency) << "'";
 	}
 
-	ss_app << "></Material></Appearance>\n";
-
-	return ss_app.str();
+	out << "></Material></Appearance>\n";
 }
 
-wstring X3D_Writer::WriteCoordinate(IShape*& iShape, bool isBoundaryEdges) const
+void X3D_Writer::WriteCoordinate(X3D_Text& out, IShape*& iShape, bool isBoundaryEdges) const
 {
-	wstringstream ss_coords;
-
-	ss_coords << "<Coordinate";
+	out << "<Coordinate";
 
 	if (!isBoundaryEdges)
 	{
 		if (m_opt->Edge()
 			&& iShape->IsFaceSet())
-			ss_coords << " DEF='c" << to_wstring(iShape->GetGlobalIndex()) << "'";
+			out << " DEF='c" << to_wstring(iShape->GetGlobalIndex()) << "'";
 
-		ss_coords << " point='";
+		out << " point='";
+		bool firstCoordinate = true;
 
 		for (int i = 0; i < iShape->GetMeshSize(); ++i)
 		{
@@ -719,29 +700,37 @@ wstring X3D_Writer::WriteCoordinate(IShape*& iShape, bool isBoundaryEdges) const
 			{
 				const gp_XYZ& coord = mesh->GetCoordinateAt(j);
 
-				ss_coords << NumTool::DoubleToWString(coord.X()) << " ";
-				ss_coords << NumTool::DoubleToWString(coord.Y()) << " ";
-				ss_coords << NumTool::DoubleToWString(coord.Z()) << " ";
+				if (!firstCoordinate)
+					out << " ";
+				out << NumTool::DoubleToWString(coord.X()) << " ";
+				out << NumTool::DoubleToWString(coord.Y()) << " ";
+				out << NumTool::DoubleToWString(coord.Z());
+				firstCoordinate = false;
 			}
 		}
 	}
 	else
 	{
-		ss_coords << " USE='c" << to_wstring(iShape->GetGlobalIndex());
+		out << " USE='c" << to_wstring(iShape->GetGlobalIndex());
 	}
 
 	if (m_opt->SFA())
-		ss_coords << "'></Coordinate>\n";
+		out << "'></Coordinate>\n";
 	else
-		ss_coords << "'/>\n";
-
-	return CleanString(ss_coords.str());
+		out << "'/>\n";
 }
 
-wstring X3D_Writer::WriteCoordinateIndex(IShape*& iShape, bool faceMesh) const
+void X3D_Writer::WriteCoordinateIndex(X3D_Text& out, IShape*& iShape, bool faceMesh) const
 {
-	wstringstream ss_coordIndex;
-	ss_coordIndex << " coordIndex='";
+	out << " coordIndex='";
+	bool firstIndex = true;
+	auto writeIndex = [&out, &firstIndex](int index)
+	{
+		if (!firstIndex)
+			out << " ";
+		out << to_wstring(index);
+		firstIndex = false;
+	};
 
 	int prevCoordCount = 0; // The number of previous coordinates
 
@@ -754,12 +743,12 @@ wstring X3D_Writer::WriteCoordinateIndex(IShape*& iShape, bool faceMesh) const
 			// Traverse triangles
 			for (int j = 0; j < mesh->GetFaceIndexSize(); ++j)
 			{
-				const vector<int>& faceIndex = mesh->GetFaceIndexAt(j);
+				const TriIndex& faceIndex = mesh->GetFaceIndexAt(j);
 				
-				ss_coordIndex << to_wstring(faceIndex[0] - 1 + prevCoordCount) << " ";
-				ss_coordIndex << to_wstring(faceIndex[1] - 1 + prevCoordCount) << " ";
-				ss_coordIndex << to_wstring(faceIndex[2] - 1 + prevCoordCount) << " ";
-				ss_coordIndex << "-1 ";
+				writeIndex(faceIndex[0] - 1 + prevCoordCount);
+				writeIndex(faceIndex[1] - 1 + prevCoordCount);
+				writeIndex(faceIndex[2] - 1 + prevCoordCount);
+				writeIndex(-1);
 			}
 		}
 		else // Edge mesh (Boundary edges, sketch geometry)
@@ -767,31 +756,36 @@ wstring X3D_Writer::WriteCoordinateIndex(IShape*& iShape, bool faceMesh) const
 			// Traverse edges
 			for (int j = 0; j < mesh->GetEdgeIndexSize(); ++j)
 			{
-				const vector<int>& edgeIndex = mesh->GetEdgeIndexAt(j);
+				const EdgeIndex& edgeIndex = mesh->GetEdgeIndexAt(j);
 
 				for (size_t k = 0; k < edgeIndex.size(); ++k)
 				{
 					int index = edgeIndex[k] - 1 + prevCoordCount;
-					ss_coordIndex << to_wstring(index) << " ";
+					writeIndex(index);
 					//cout << "			" << index << endl;
 				}
 
-				ss_coordIndex << "-1 ";
+				writeIndex(-1);
 			}
 		}
 
 		prevCoordCount += mesh->GetCoordinateSize();
 	}
 
-	ss_coordIndex << "'";
-
-	return CleanString(ss_coordIndex.str());
+	out << "'";
 }
 
-wstring X3D_Writer::WriteNormalIndex(IShape*& iShape) const
+void X3D_Writer::WriteNormalIndex(X3D_Text& out, IShape*& iShape) const
 {
-	wstringstream ss_normalIndex;	
-	ss_normalIndex << " normalIndex='";
+	out << " normalIndex='";
+	bool firstIndex = true;
+	auto writeIndex = [&out, &firstIndex](int index)
+	{
+		if (!firstIndex)
+			out << " ";
+		out << to_wstring(index);
+		firstIndex = false;
+	};
 
 	int prevCoordCount = 0; // The number of previous coordinates
 
@@ -802,32 +796,29 @@ wstring X3D_Writer::WriteNormalIndex(IShape*& iShape) const
 		// Traverse triangles
 		for (int j = 0; j < mesh->GetNormalIndexSize(); ++j)
 		{
-			const vector<int>& normalIndex = mesh->GetNormalIndexAt(j);
+			const TriIndex& normalIndex = mesh->GetNormalIndexAt(j);
 
-			ss_normalIndex << to_wstring(normalIndex[0] - 1 + prevCoordCount) << " ";
-			ss_normalIndex << to_wstring(normalIndex[1] - 1 + prevCoordCount) << " ";
-			ss_normalIndex << to_wstring(normalIndex[2] - 1 + prevCoordCount) << " ";
-			ss_normalIndex << "-1 ";
+			writeIndex(normalIndex[0] - 1 + prevCoordCount);
+			writeIndex(normalIndex[1] - 1 + prevCoordCount);
+			writeIndex(normalIndex[2] - 1 + prevCoordCount);
+			writeIndex(-1);
 		}
 
 		prevCoordCount += mesh->GetCoordinateSize();
 	}
 
-	ss_normalIndex << "'";
-	
-	return CleanString(ss_normalIndex.str());
+	out << "'";
 }
 
-wstring X3D_Writer::WriteColor(IShape*& iShape) const
+void X3D_Writer::WriteColor(X3D_Text& out, IShape*& iShape) const
 {
-	wstringstream ss_colors;
-
 	bool isMultiTransparent = iShape->IsMultiTransparent();
 
 	if (isMultiTransparent)
-		ss_colors << "<ColorRGBA color='";
+		out << "<ColorRGBA color='";
 	else
-		ss_colors << "<Color color='";
+		out << "<Color color='";
+	bool firstColor = true;
 
 	// Write colors for each coordinate point
 	for (int i = 0; i < iShape->GetMeshSize(); ++i)
@@ -838,31 +829,29 @@ wstring X3D_Writer::WriteColor(IShape*& iShape) const
 		{
 			const Quantity_ColorRGBA& color = iShape->GetColor(mesh->GetShape());
 
-			ss_colors << NumTool::DoubleToWString(color.GetRGB().Red()) << " ";
-			ss_colors << NumTool::DoubleToWString(color.GetRGB().Green()) << " ";
-			ss_colors << NumTool::DoubleToWString(color.GetRGB().Blue()) << " ";
+			if (!firstColor)
+				out << " ";
+			AppendDisplayColor(out, color.GetRGB());
 
 			if (isMultiTransparent)
 			{
 				double transparency = color.Alpha();
-				ss_colors << NumTool::DoubleToWString(transparency) << " ";
+				out << " " << NumTool::DoubleToWString(transparency);
 			}
+			firstColor = false;
 		}
 	}
 
 	if (isMultiTransparent)
-		ss_colors << "'></ColorRGBA>\n";
+		out << "'></ColorRGBA>\n";
 	else
-		ss_colors << "'></Color>\n";
-
-	return CleanString(ss_colors.str());
+		out << "'></Color>\n";
 }
 
-wstring X3D_Writer::WriteNormal(IShape*& iShape) const
+void X3D_Writer::WriteNormal(X3D_Text& out, IShape*& iShape) const
 {
-	wstringstream ss_normals;
-
-	ss_normals << "<Normal vector='";
+	out << "<Normal vector='";
+	bool firstNormal = true;
 
 	for (int i = 0; i < iShape->GetMeshSize(); ++i)
 	{
@@ -872,15 +861,16 @@ wstring X3D_Writer::WriteNormal(IShape*& iShape) const
 		{
 			const gp_XYZ& normal = mesh->GetNormalAt(j);
 			
-			ss_normals << NumTool::DoubleToWString(normal.X()) << " ";
-			ss_normals << NumTool::DoubleToWString(normal.Y()) << " ";
-			ss_normals << NumTool::DoubleToWString(normal.Z()) << " ";
+			if (!firstNormal)
+				out << " ";
+			out << NumTool::DoubleToWString(normal.X()) << " ";
+			out << NumTool::DoubleToWString(normal.Y()) << " ";
+			out << NumTool::DoubleToWString(normal.Z());
+			firstNormal = false;
 		}
 	}
 
-	ss_normals << "'></Normal>\n";
-
-	return CleanString(ss_normals.str());
+	out << "'></Normal>\n";
 }
 
 const wstring X3D_Writer::Indent(int level) const
@@ -894,17 +884,6 @@ const wstring X3D_Writer::Indent(int level) const
 	return indent;
 }
 
-const wstring X3D_Writer::CleanString(wstring str) const
-{
-	wstring from = L" '";
-	wstring to = L"'";
-
-	// Remove a blank at the end of '... ' string
-	str = StrTool::ReplaceCharacter(str, from, to);
-	
-	return str;
-}
-
 bool X3D_Writer::CheckSameAppearance(const Quantity_Color& diffuseColor, bool isDiffuseOn,
 									 const Quantity_Color& emissiveColor, bool isEmissiveOn,
 									 const Quantity_Color& specularColor, bool isSpecularOn,
@@ -913,10 +892,77 @@ bool X3D_Writer::CheckSameAppearance(const Quantity_Color& diffuseColor, bool is
 									 double& transparency, bool isTransparencyOn,
 									 int& appID)
 {
-	// Search for the same appearance
+	auto hashCombine = [](size_t& seed, size_t value)
+	{
+		seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+	};
+	auto hashBool = [](bool value) -> size_t { return value ? 1u : 0u; };
+	auto hashDoubleBits = [](double value) -> size_t
+	{
+		static_assert(sizeof(double) == sizeof(uint64_t), "unexpected double size");
+		uint64_t bits = 0;
+		memcpy(&bits, &value, sizeof(bits));
+		return static_cast<size_t>(bits ^ (bits >> 32));
+	};
+	auto hashColorBits = [&](const Quantity_Color& color) -> size_t
+	{
+		size_t seed = 0;
+		hashCombine(seed, hashDoubleBits(color.Red()));
+		hashCombine(seed, hashDoubleBits(color.Green()));
+		hashCombine(seed, hashDoubleBits(color.Blue()));
+		return seed;
+	};
+
+	size_t exactKey = 0;
+	hashCombine(exactKey, hashBool(isDiffuseOn));
+	hashCombine(exactKey, hashBool(isEmissiveOn));
+	hashCombine(exactKey, hashBool(isSpecularOn));
+	hashCombine(exactKey, hashBool(isShininessOn));
+	hashCombine(exactKey, hashBool(isAmbientIntensityOn));
+	hashCombine(exactKey, hashBool(isTransparencyOn));
+	if (isDiffuseOn) hashCombine(exactKey, hashColorBits(diffuseColor));
+	if (isEmissiveOn) hashCombine(exactKey, hashColorBits(emissiveColor));
+	if (isSpecularOn) hashCombine(exactKey, hashColorBits(specularColor));
+	if (isShininessOn) hashCombine(exactKey, hashDoubleBits(shininess));
+	if (isAmbientIntensityOn) hashCombine(exactKey, hashDoubleBits(ambientIntensity));
+	if (isTransparencyOn) hashCombine(exactKey, hashDoubleBits(transparency));
+
+	const auto exactHit = m_appearanceExactIndex.find(exactKey);
+	if (exactHit != m_appearanceExactIndex.end())
+	{
+		for (int candidateID : exactHit->second)
+		{
+			const Appearance& app = m_appearances[candidateID];
+
+			if (app.isDiffuseOn == isDiffuseOn
+				&& ((isDiffuseOn && app.diffuseColor.IsEqual(diffuseColor))
+					|| !isDiffuseOn) &&
+				app.isEmissiveOn == isEmissiveOn
+				&& ((isEmissiveOn && app.emissiveColor.IsEqual(emissiveColor))
+					|| !isEmissiveOn) &&
+				app.isSpecularOn == isSpecularOn
+				&& ((isSpecularOn && app.specularColor.IsEqual(specularColor))
+					|| !isSpecularOn) &&
+				app.isShininessOn == isShininessOn
+				&& ((isShininessOn && abs(app.shininess - shininess) <= Precision::Confusion())
+					|| !isShininessOn) &&
+				app.isAmbientIntensityOn == isAmbientIntensityOn
+				&& ((isAmbientIntensityOn && abs(app.ambientIntensity - ambientIntensity) <= Precision::Confusion())
+					|| !isAmbientIntensityOn) &&
+				app.isTransparencyOn == isTransparencyOn
+				&& ((isTransparencyOn && abs(app.transparency - transparency) <= Precision::Confusion())
+					|| !isTransparencyOn))
+			{
+				appID = candidateID;
+				return true;
+			}
+		}
+	}
+
+	// Fuzzy match fallback preserves previous IsEqual / Precision::Confusion semantics.
 	for (int i = 0; i < (int)m_appearances.size(); ++i)
 	{
-		Appearance app = m_appearances[i];
+		const Appearance& app = m_appearances[i];
 
 		if (app.isDiffuseOn == isDiffuseOn
 			&& ((isDiffuseOn && app.diffuseColor.IsEqual(diffuseColor))
@@ -937,7 +983,8 @@ bool X3D_Writer::CheckSameAppearance(const Quantity_Color& diffuseColor, bool is
 			&& ((isTransparencyOn && abs(app.transparency - transparency) <= Precision::Confusion())
 				|| !isTransparencyOn))
 		{
-			appID = i; // Save the order
+			appID = i;
+			m_appearanceExactIndex[exactKey].push_back(appID);
 			return true;
 		}
 	}
@@ -960,16 +1007,15 @@ bool X3D_Writer::CheckSameAppearance(const Quantity_Color& diffuseColor, bool is
 
 	// Save the latest order
 	appID = (int)m_appearances.size() - 1;
+	m_appearanceExactIndex[exactKey].push_back(appID);
 
 	return false;
 }
 
-wstring X3D_Writer::WriteSketchGeometry(IShape*& iShape, int level)
+void X3D_Writer::WriteSketchGeometry(X3D_Text& out, IShape*& iShape, int level)
 {
-	wstringstream ss_sg;
-
-	ss_sg << Indent(level);
-	ss_sg << "<Shape>\n";
+	out << Indent(level);
+	out << "<Shape>\n";
 
 	bool isMultiColored = iShape->IsMultiColored();
 
@@ -983,49 +1029,45 @@ wstring X3D_Writer::WriteSketchGeometry(IShape*& iShape, int level)
 		else
 			color = m_emissiveColor;
 
-		ss_sg << Indent(level + 1);
-		ss_sg << "<Appearance><Material";
-		ss_sg << " emissiveColor='";
-		ss_sg << NumTool::DoubleToWString(color.Red()) << " ";
-		ss_sg << NumTool::DoubleToWString(color.Green()) << " ";
-		ss_sg << NumTool::DoubleToWString(color.Blue()) << "'";
-		ss_sg << "></Material></Appearance>\n";
+		out << Indent(level + 1);
+		out << "<Appearance><Material";
+		out << " emissiveColor='";
+		AppendDisplayColor(out, color);
+		out << "'";
+		out << "></Material></Appearance>\n";
 	}
 
 	// Open IndexedLineSet
-	ss_sg << Indent(level + 1);
-	ss_sg << "<IndexedLineSet";
-	ss_sg << WriteCoordinateIndex(iShape, false) << ">\n";
+	out << Indent(level + 1);
+	out << "<IndexedLineSet";
+	WriteCoordinateIndex(out, iShape, false);
+	out << ">\n";
 
 	// Write coordinates
-	ss_sg << Indent(level + 2);
-	ss_sg << WriteCoordinate(iShape, false);
+	out << Indent(level + 2);
+	WriteCoordinate(out, iShape, false);
 
 	// Write colors
 	if (isMultiColored)
 	{
-		ss_sg << Indent(level + 2);
-		ss_sg << WriteColor(iShape);
+		out << Indent(level + 2);
+		WriteColor(out, iShape);
 	}
 
 	// Close IndexedLineSet
-	ss_sg << Indent(level + 1);
-	ss_sg << "</IndexedLineSet>\n";
+	out << Indent(level + 1);
+	out << "</IndexedLineSet>\n";
 
-	ss_sg << Indent(level);
-	ss_sg << "</Shape>\n";
-
-	return ss_sg.str();
+	out << Indent(level);
+	out << "</Shape>\n";
 }
 
-wstring X3D_Writer::WriteRosetteGeometry(Component*& comp, int level)
+void X3D_Writer::WriteRosetteGeometry(X3D_Text& out, Component*& comp, int level)
 {
-	wstringstream ss_rg;
-
 	if (m_opt->SFA()) // SFA-specific
 	{
-		ss_rg << "<!--composites-->\n";
-		ss_rg << Indent(level) << "<Switch whichChoice='0' id='swComposites1'><Group>\n";
+		out << "<!--composites-->\n";
+		out << Indent(level) << "<Switch whichChoice='0' id='swComposites1'><Group>\n";
 	}
 	else
 		level--;
@@ -1040,7 +1082,7 @@ wstring X3D_Writer::WriteRosetteGeometry(Component*& comp, int level)
 
 		try
 		{
-			ss_rg << WriteShape(iShape, level + 1);
+			WriteShape(out, iShape, level + 1);
 		}
 		catch (...)
 		{
@@ -1050,16 +1092,12 @@ wstring X3D_Writer::WriteRosetteGeometry(Component*& comp, int level)
 
 	if (m_opt->SFA()) // SFA-specific
 	{
-		ss_rg << Indent(level) << "</Group></Switch>\n";
+		out << Indent(level) << "</Group></Switch>\n";
 	}
-
-	return ss_rg.str();
 }
 
-wstring X3D_Writer::WriteSectionCapGeometry(Component*& comp, int level)
+void X3D_Writer::WriteSectionCapGeometry(X3D_Text& out, Component*& comp, int level)
 {
-	wstringstream ss_cg;
-
 	int sectionCapCount = 0;
 	int tempID = -1;
 
@@ -1087,15 +1125,15 @@ wstring X3D_Writer::WriteSectionCapGeometry(Component*& comp, int level)
 		{
 			if (m_opt->SFA()) // SFA-specific
 			{
-				ss_cg << Indent(level) << "<Switch whichChoice='-1' id='swClippingCap";
-				ss_cg << to_wstring(++sectionCapCount);
-				ss_cg << "'><Group>\n";
+				out << Indent(level) << "<Switch whichChoice='-1' id='swClippingCap";
+				out << to_wstring(++sectionCapCount);
+				out << "'><Group>\n";
 			}
 		}
 
 		try
 		{
-			ss_cg << WriteShape(iShape, level + 1);
+			WriteShape(out, iShape, level + 1);
 		}
 		catch (...)
 		{
@@ -1107,14 +1145,13 @@ wstring X3D_Writer::WriteSectionCapGeometry(Component*& comp, int level)
 		{
 			if (m_opt->SFA()) // SFA-specific
 			{
-				ss_cg << Indent(level) << "</Group></Switch>\n";
+				out << Indent(level) << "</Group></Switch>\n";
 			}
 		}
 
 		tempID = sectionID;
 	}
 
-	return ss_cg.str();
 }
 
 void X3D_Writer::CountIndent(int level)
@@ -1143,30 +1180,28 @@ void X3D_Writer::PrintMaterialCount(void) const
 	printf("Number of Materials: %d\n", (int)m_appearances.size());
 }
 
-wstring X3D_Writer::WriteGDT(Model*& model, int level)
+void X3D_Writer::WriteGDT(X3D_Text& out, Model*& model, int level)
 {
-	wstringstream ss_gdt;
-
-	ss_gdt << Indent(level);
-	ss_gdt << "<Group";
+	out << Indent(level);
+	out << "<Group";
 
 	if (m_opt->SFA())
-		ss_gdt << " id='highlight'";
+		out << " id='highlight'";
 	
-	ss_gdt << " DEF='GD&T'>\n";
+	out << " DEF='GD&T'>\n";
 
 	for (int i = 0; i < model->GetGDTSize(); ++i)
 	{
 		GDT_Item* gdt = model->GetGDTAt(i);
 
-		ss_gdt << Indent(level + 1);
-		ss_gdt << "<Group";
+		out << Indent(level + 1);
+		out << "<Group";
 
 		if (m_opt->SFA())
-			ss_gdt << " id='" << gdt->GetName().c_str() << "'";
+			out << " id='" << gdt->GetName().c_str() << "'";
 
-		ss_gdt << " DEF='" << gdt->GetName().c_str() << "'";
-		ss_gdt << ">\n";
+		out << " DEF='" << gdt->GetName().c_str() << "'";
+		out << ">\n";
 
 		TopoDS_Shape shape;
 		IShape* faceShape = new IShape(shape);
@@ -1185,94 +1220,93 @@ wstring X3D_Writer::WriteGDT(Model*& model, int level)
 		// face shape
 		if (faceShape->GetMeshSize() > 0)
 		{
-			ss_gdt << Indent(level + 2);
-			ss_gdt << "<Shape>\n";
+			out << Indent(level + 2);
+			out << "<Shape>\n";
 
 			// Write Appearance node
-			ss_gdt << Indent(level + 3);
+			out << Indent(level + 3);
 
-			ss_gdt << WriteAppearance(faceShape, m_gdtColor, true,
+			WriteAppearance(out, faceShape, m_gdtColor, true,
 				m_emissiveColor, false,
 				m_specularColor, true,
 				m_shininess, true,
 				m_ambientIntensity, false,
 				m_transparency, false);
 
-			ss_gdt << Indent(level + 3);
+			out << Indent(level + 3);
 
-			ss_gdt << "<IndexedFaceSet";
+			out << "<IndexedFaceSet";
 
 			if (!m_opt->Normal())
-				ss_gdt << " creaseAngle='" << NumTool::DoubleToWString(m_creaseAngle) << "'";
+				out << " creaseAngle='" << NumTool::DoubleToWString(m_creaseAngle) << "'";
 
-			ss_gdt << " solid='false'";
+			out << " solid='false'";
 
-			ss_gdt << WriteCoordinateIndex(faceShape, true);
+			WriteCoordinateIndex(out, faceShape, true);
 
 			if (m_opt->Normal())
-				ss_gdt << WriteNormalIndex(faceShape);
+				WriteNormalIndex(out, faceShape);
 
-			ss_gdt << ">\n";
+			out << ">\n";
 
 			// Write coordinates
-			ss_gdt << Indent(level + 4);
-			ss_gdt << WriteCoordinate(faceShape, false);
+			out << Indent(level + 4);
+			WriteCoordinate(out, faceShape, false);
 
 			// Close IndexedFaceSet
-			ss_gdt << Indent(level + 3);
-			ss_gdt << "</IndexedFaceSet>\n";
+			out << Indent(level + 3);
+			out << "</IndexedFaceSet>\n";
 
-			ss_gdt << Indent(level + 2);
-			ss_gdt << "</Shape>\n";
+			out << Indent(level + 2);
+			out << "</Shape>\n";
 		}
 
 		// edge shape
 		if (edgeShape->GetMeshSize() > 0)
 		{
-			ss_gdt << Indent(level + 2);
-			ss_gdt << "<Shape>\n";
+			out << Indent(level + 2);
+			out << "<Shape>\n";
 
 			// Write Appearance node
-			ss_gdt << Indent(level + 3);
+			out << Indent(level + 3);
 
-			ss_gdt << WriteAppearance(edgeShape, m_gdtColor, false,
+			WriteAppearance(out, edgeShape, m_gdtColor, false,
 				m_gdtColor2, true,
 				m_specularColor, false,
 				m_shininess, false,
 				m_ambientIntensity, false,
 				m_transparency, false);
 
-			ss_gdt << Indent(level + 3);
-			ss_gdt << "<IndexedLineSet";
+			out << Indent(level + 3);
+			out << "<IndexedLineSet";
 
-			ss_gdt << WriteCoordinateIndex(edgeShape, false);
+			WriteCoordinateIndex(out, edgeShape, false);
 
-			ss_gdt << ">\n";
+			out << ">\n";
 
 			// Write coordinates
-			ss_gdt << Indent(level + 4);
-			ss_gdt << WriteCoordinate(edgeShape, false);
+			out << Indent(level + 4);
+			WriteCoordinate(out, edgeShape, false);
 
 			// Close IndexedFaceSet
-			ss_gdt << Indent(level + 3);
-			ss_gdt << "</IndexedLineSet>\n";
+			out << Indent(level + 3);
+			out << "</IndexedLineSet>\n";
 
-			ss_gdt << Indent(level + 2);
-			ss_gdt << "</Shape>\n";
+			out << Indent(level + 2);
+			out << "</Shape>\n";
 		}
 
-		ss_gdt << Indent(level + 1);
-		ss_gdt << "</Group>\n";
+		out << Indent(level + 1);
+		out << "</Group>\n";
 	}
 
-	ss_gdt << Indent(level);
-	ss_gdt << "</Group>\n";
-
-	return ss_gdt.str();
+	out << Indent(level);
+	out << "</Group>\n";
 }
 
 void X3D_Writer::Clear(void)
 {
 	m_appearances.clear();
+	m_appearanceExactIndex.clear();
 	m_indentCountMap.clear();
 }

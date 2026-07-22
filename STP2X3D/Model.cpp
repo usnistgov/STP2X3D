@@ -13,6 +13,13 @@ Model::~Model(void)
 	Clear();
 }
 
+vector<Component*> Model::ReleaseRootComponents(void)
+{
+	vector<Component*> roots = std::move(m_rootComponents);
+	m_rootComponents.clear();
+	return roots;
+}
+
 void Model::GetAllComponents(vector<Component*>& comps) const
 {
 	for (const auto& rootComp : m_rootComponents)

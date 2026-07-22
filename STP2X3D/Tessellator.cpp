@@ -23,6 +23,9 @@ Tessellator::~Tessellator(void)
 
 void Tessellator::Tessellate(Model*& model) const
 {
+	m_meshCache.clear();
+	m_meshedTShapes.clear();
+
 	TessellateModel(model);
 
 	if (m_opt->GDT())
@@ -44,7 +47,8 @@ void Tessellator::TessellateModel(Model*& model) const
 			double linDeflection = OCCUtil::GetDeflection(shape);
 
 			// Tessellate and add mesh data of a shape
-			if (!OCCUtil::TessellateShape(shape, linDeflection, m_isRelative, m_angDeflection, true))
+			bool didRemesh = false;
+			if (!TessellateShapeOnce(shape, linDeflection, didRemesh))
 				wcout << "\tTessellation has failed on Shape: " << rootComp->GetName() << endl;
 		}
 	}
@@ -82,8 +86,12 @@ void Tessellator::TessellateShape(IShape*& iShape) const
 			linDeflection = 0.1 * linDeflection;
 
 		// Tessellate and add mesh data of a shape
-		if (!OCCUtil::TessellateShape(shape, linDeflection, m_isRelative, m_angDeflection, true))
+		bool didRemesh = false;
+		if (!TessellateShapeOnce(shape, linDeflection, didRemesh))
 			wcout << "\tTessellation has failed on Shape: " << iShape->GetName() << endl;
+		else if (didRemesh)
+			// Remeshing can replace triangulations for cached sub-shapes.
+			m_meshCache.clear();
 	}
 
 	if (iShape->IsFaceSet())
@@ -132,6 +140,12 @@ void Tessellator::AddMeshForSketchGeometry(IShape*& iShape) const
 
 Mesh* Tessellator::GetMeshForFace(const TopoDS_Face& face, bool isTessSolidModel) const
 {
+	const MeshCacheKey cacheKey(face, true, isTessSolidModel);
+	const auto cachedMesh = m_meshCache.find(cacheKey);
+
+	if (cachedMesh != m_meshCache.end())
+		return new Mesh(cachedMesh->second);
+
 	TopLoc_Location loc;
 
 	const Handle(Poly_Triangulation)& myT = BRep_Tool::Triangulation(face, loc);
@@ -142,6 +156,13 @@ Mesh* Tessellator::GetMeshForFace(const TopoDS_Face& face, bool isTessSolidModel
 		return nullptr;
 
 	Mesh* mesh = new Mesh(face);
+	mesh->ReserveCoordinates(myT->NbNodes());
+	mesh->ReserveFaceIndexes(myT->NbTriangles());
+	if (m_opt->Normal() && !isTessSolidModel)
+	{
+		mesh->ReserveNormals(myT->NbNodes());
+		mesh->ReserveNormalIndexes(myT->NbTriangles());
+	}
 
 	const Poly_ArrayOfNodes& Nodes = myT->InternalNodes();
 	
@@ -153,13 +174,13 @@ Mesh* Tessellator::GetMeshForFace(const TopoDS_Face& face, bool isTessSolidModel
 	}
 
 	const TopAbs_Orientation& orientation = face.Orientation();
-	const Poly_Array1OfTriangle& triangles = myT->InternalTriangles();
+	const NCollection_Array1<Poly_Triangle>& triangles = myT->Triangles();
 
 	// Add triangle indexes
 	for (int i = 1; i <= myT->NbTriangles(); ++i)
 	{
 		int n1, n2, n3;
-		triangles(i).Get(n1, n2, n3);
+		triangles.Value(i).Get(n1, n2, n3);
 
 		// If a face is reversed, change the direction.
 		if (orientation == TopAbs_REVERSED)
@@ -236,15 +257,17 @@ Mesh* Tessellator::GetMeshForFace(const TopoDS_Face& face, bool isTessSolidModel
 			{
 				const TopoDS_Edge& edge = TopoDS::Edge(ExpEdge.Current());
 				const Handle(Poly_PolygonOnTriangulation)& polygon = BRep_Tool::PolygonOnTriangulation(edge, myT, loc);
-				const TColStd_Array1OfInteger& edgeNodes = polygon->Nodes();
+				if (polygon.IsNull())
+					continue;
+
+				const NCollection_Array1<int>& edgeNodes = polygon->Nodes();
 
 				vector<int> edgeIndex;
 
 				for (int i = edgeNodes.Lower(); i <= edgeNodes.Upper(); ++i)
-					edgeIndex.push_back(edgeNodes(i));
+					edgeIndex.push_back(edgeNodes.Value(i));
 
-				mesh->AddEdgeIndex(edgeIndex);
-				edgeIndex.clear();
+				mesh->AddEdgeIndex(std::move(edgeIndex));
 			}
 		}
 		else
@@ -254,9 +277,9 @@ Mesh* Tessellator::GetMeshForFace(const TopoDS_Face& face, bool isTessSolidModel
 			{
 				for (int i = 0; i < mesh->GetFaceIndexSize(); ++i)
 				{
-					vector<int> faceIndex = mesh->GetFaceIndexAt(i);
+					const TriIndex& faceIndex = mesh->GetFaceIndexAt(i);
 
-					vector<int> edgeIndex1, edgeIndex2, edgeIndex3;
+					EdgeIndex edgeIndex1, edgeIndex2, edgeIndex3;
 
 					edgeIndex1.push_back(faceIndex[0]);
 					edgeIndex1.push_back(faceIndex[1]);
@@ -273,11 +296,19 @@ Mesh* Tessellator::GetMeshForFace(const TopoDS_Face& face, bool isTessSolidModel
 		}
 	}
 	
+	m_meshCache.emplace(cacheKey, *mesh);
+
 	return mesh;
 }
 
 Mesh* Tessellator::GetMeshForEdge(const TopoDS_Edge& edge) const
 {
+	const MeshCacheKey cacheKey(edge, false, false);
+	const auto cachedMesh = m_meshCache.find(cacheKey);
+
+	if (cachedMesh != m_meshCache.end())
+		return new Mesh(cachedMesh->second);
+
 	TopLoc_Location loc;
 
 	// Get a tessellated edge
@@ -288,24 +319,52 @@ Mesh* Tessellator::GetMeshForEdge(const TopoDS_Edge& edge) const
 		return nullptr;
 
 	Mesh* mesh = new Mesh(edge);
+	mesh->ReserveCoordinates(myP->NbNodes());
+	mesh->ReserveEdgeIndexes(1);
 
-	const TColgp_Array1OfPnt& Nodes = myP->Nodes();
+	const NCollection_Array1<gp_Pnt>& Nodes = myP->Nodes();
 
-	vector<int> edgeIndex;
+	EdgeIndex edgeIndex;
+	edgeIndex.reserve(static_cast<size_t>(Nodes.Upper() - Nodes.Lower() + 1));
 
 	// Add coordinates and edge index
 	for (int i = Nodes.Lower(); i <= Nodes.Upper(); ++i)
 	{
-		const gp_Pnt& pnt = Nodes(i).Transformed(loc.Transformation());
+		const gp_Pnt& pnt = Nodes.Value(i).Transformed(loc.Transformation());
 		mesh->AddCoordinate(pnt.XYZ());
 		edgeIndex.push_back(i);
 	}
 
 	// Save the edge index
-	mesh->AddEdgeIndex(edgeIndex);
-	edgeIndex.clear();
+	mesh->AddEdgeIndex(std::move(edgeIndex));
+
+	m_meshCache.emplace(cacheKey, *mesh);
 
 	return mesh;
+}
+
+bool Tessellator::TessellateShapeOnce(const TopoDS_Shape& shape, double linDeflection, bool& didRemesh) const
+{
+	didRemesh = false;
+
+	const void* tshape = shape.TShape().get();
+	const auto meshed = m_meshedTShapes.find(tshape);
+
+	if (meshed != m_meshedTShapes.end()
+		&& meshed->second.linDeflection == linDeflection
+		&& meshed->second.angDeflection == m_angDeflection
+		&& meshed->second.isRelative == m_isRelative)
+	{
+		// Same underlying geometry already meshed with identical parameters.
+		return true;
+	}
+
+	if (!OCCUtil::TessellateShape(shape, linDeflection, m_isRelative, m_angDeflection, true))
+		return false;
+
+	m_meshedTShapes[tshape] = { linDeflection, m_angDeflection, m_isRelative };
+	didRemesh = true;
+	return true;
 }
 
 bool Tessellator::IsTriangleValid(const gp_Pnt& p1, const gp_Pnt& p2, const gp_Pnt& p3) const
@@ -352,8 +411,13 @@ void Tessellator::TessellateGDT(Model*& model) const
 			{
 				double linDeflection = OCCUtil::GetDeflection(shape);
 
-				if (!OCCUtil::TessellateShape(shape, linDeflection, m_isRelative, m_angDeflection, true))
-					return;
+				bool didRemesh = false;
+				if (!TessellateShapeOnce(shape, linDeflection, didRemesh))
+					continue;
+
+				// Remeshing can replace triangulations for cached sub-shapes.
+				if (didRemesh)
+					m_meshCache.clear();
 
 				TopExp_Explorer ExpEdge;
 				for (ExpEdge.Init(shape, TopAbs_EDGE); ExpEdge.More(); ExpEdge.Next())

@@ -1,7 +1,7 @@
 #pragma once
 
 #pragma comment(lib, "TKBO.lib")
-#pragma comment(lib, "TKBrep.lib")
+#pragma comment(lib, "TKBRep.lib")
 #pragma comment(lib, "TKCAF.lib")
 #pragma comment(lib, "TKCDF.lib")
 
@@ -49,7 +49,6 @@
 #include <XCAFDoc_LayerTool.hxx>
 #include <XCAFDoc_MaterialTool.hxx>
 #include <XCAFDoc_View.hxx>
-#include <XCAFDoc_ViewTool.hxx>
 #include <XCAFDoc_Note.hxx>
 #include <XCAFDoc_NotesTool.hxx>
 #include <XCAFDoc_Datum.hxx>
@@ -129,6 +128,13 @@
 #include <StepBasic_MeasureValueMember.hxx>
 #include <StepBasic_HArray1OfNamedUnit.hxx>
 #include <StepBasic_GeneralProperty.hxx>
+#include <TDF_LabelSequence.hxx>
+#include <TColStd_HArray1OfReal.hxx>
+#include <TColStd_Array1OfInteger.hxx>
+#include <TColgp_Array1OfPnt.hxx>
+#include <Poly_Array1OfTriangle.hxx>
+#include <Graphic3d_Vec3.hxx>
+#include <NCollection_Vec3.hxx>
 
 #include <Interface_UndefinedContent.hxx>
 #include <Interface_EntityList.hxx>

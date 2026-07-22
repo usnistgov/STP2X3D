@@ -75,13 +75,29 @@ void S2X_Option::SetTessellation(const int& tessellation)
 
 const wstring S2X_Option::Output(void)
 {
-    if (m_output.empty())
-        m_output = m_input.substr(0, m_input.find_last_of(L"."));
-    
-    if (m_html)
-        m_output.append(L".html");
-    else
-        m_output.append(L".x3d");
+	wstring path = m_output;
+	if (path.empty())
+	{
+		const size_t dot = m_input.find_last_of(L".");
+		path = (dot == wstring::npos) ? m_input : m_input.substr(0, dot);
+	}
 
-    return m_output;
+	const wstring extension = m_html ? L".html" : L".x3d";
+	auto endsWithIgnoreCase = [](const wstring& value, const wstring& suffix) -> bool
+	{
+		if (value.size() < suffix.size())
+			return false;
+		for (size_t i = 0; i < suffix.size(); ++i)
+		{
+			if (towlower(value[value.size() - suffix.size() + i]) != towlower(suffix[i]))
+				return false;
+		}
+		return true;
+	};
+
+	if (!endsWithIgnoreCase(path, extension))
+		path.append(extension);
+
+	m_output = path;
+	return m_output;
 }

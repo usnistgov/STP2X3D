@@ -32,6 +32,9 @@ namespace OCCUtil
 	// Transform a shape
 	TopoDS_Shape TransformShape(TopoDS_Shape shape, gp_Trsf trsf);
 
+	// True if the shape already stores triangulation/polygons
+	bool HasPolygonalData(const TopoDS_Shape& shape);
+
 	// Tessellate a shape
 	bool TessellateShape(const TopoDS_Shape& shape, double linearDeflection, bool isRelative, double angularDeflection, bool isParallel);
 

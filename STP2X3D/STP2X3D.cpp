@@ -1,18 +1,16 @@
-﻿// STP2X3D.cpp : Defines the entry point for the console application.
+// STP2X3D.cpp : Defines the entry point for the console application.
 //
 
 #include "stdafx.h"
+#include "AP242XML_Reader.h"
 #include "STEP_Reader.h"
 #include "Tessellator.h"
 #include "X3D_Writer.h"
 #include "StatsPrinter.h"
 #include "GDT_Item.h"
 #include "Mesh.h"
-//#include <experimental/filesystem>
-//#include <filesystem>
-
-namespace fs = std::experimental::filesystem;
-//namespace fs = std::filesystem;
+#include <stdexcept>
+namespace fs = std::filesystem;
 
 void Test(S2X_Option* opt)
 {
@@ -78,15 +76,15 @@ void PrintUsage(wstring exe, S2X_Option* opt)
 {
 	wcout << endl;
 	wcout << "//////////////////////////////////////////////////" << endl;
-	wcout << "//  NIST STEP to X3D Translator (STP2X3D) " << opt->Version() <<"  //" << endl;
+	wcout << "//  STEP to X3D Translator (STP2X3D) " << opt->Version() << "        //" << endl;
 	wcout << "//////////////////////////////////////////////////" << endl;
 	wcout << endl;
 	wcout << "[Usage]" << endl;
 	wcout << " " << exe << " option1 value1 option2 value2.." << endl;
 	wcout << endl;
 	wcout << "[Options]" << endl;
-	wcout << " --input      Input STEP file path" << endl;
-	wcout << " --output     Output STEP file path (Input name is used if empty)" << endl;
+	wcout << " --input      Input STEP/AP242 XML (.stp/.step/.p21/.stpx) file path" << endl;
+	wcout << " --output     Output X3D/HTML file path (Input name is used if empty)" << endl;
 	wcout << " --normal     Normal vector (1:yes, 0:no) default=" << opt->Normal() << endl;
 	wcout << " --color      Color (1:yes, 0:no) default=" << opt->Color() << endl;
 	wcout << " --edge       Boundary edges (1:yes, 0:no) default=" << opt->Edge() << endl;
@@ -94,66 +92,94 @@ void PrintUsage(wstring exe, S2X_Option* opt)
 	wcout << " --html       Output file type (1:html, 0:x3d) default=" << opt->Html() << endl;
 	wcout << " --quality    Mesh quality (1-low to 10-high) default=" << opt->Quality() << endl;
 	wcout << " --gdt        Geometric elements related to GD&T (1:yes, 0:no) default=" << opt->GDT() << endl;
+	wcout << " --sfa        SFA stats (shape count, bbox, sketch) (1:yes, 0:no) default=" << opt->SFA() << endl;
 	wcout << " --tess       Adaptive tessellation per each body (1:yes, 0:no) default=" << opt->Tessellation() << endl;
 	wcout << " --rosette    Rosette used for Composite Design (1:yes, 0:no) default=" << opt->Rosette() << endl;
 	wcout << " --cap        Cap geometries for sections (1:yes, 0:no) default=" << opt->SectionCap() << endl;
 	wcout << " --tsolid     Tessellated solids (1:yes, 0:no) default=" << opt->TessSolid() << endl;
-	wcout << " --batch      Processing multiple STEP files (1:include sub-directories, 0:current dir)" << endl;
+	wcout << " --batch      Processing multiple STEP/AP242 XML files (1:include sub-directories, 0:current dir)" << endl;
 	wcout << "              Followed by a folder path (e.g. --batch 0 c:\\)" << endl;
 	wcout << endl;
 	wcout << "[Examples]" << endl;
 	wcout << " " << exe << " --input Model.stp --edge 1 --quality 7" << endl;
 	wcout << " " << exe << " --html 1 --sketch 0 --input Model.step" << endl;
+	wcout << " " << exe << " --input Assembly.stpx --edge 1" << endl;
 	wcout << " " << exe << " --color 0 --batch 1 C:\\Folder --normal 1" << endl;
 	wcout << endl;
-	wcout << "[Disclaimers]" << endl;
-	wcout << " This software was developed at the National Institute of Standards and Technology by" << endl;
-	wcout << " employees of the Federal Government in the course of their official duties. Pursuant" << endl;
-	wcout << " to Title 17 Section 105 of the United States Code this software is not subject to" << endl;
-	wcout << " copyright protection and is in the public domain. This software is an experimental" << endl;
-	wcout << " system. NIST assumes no responsibility whatsoever for its use by other parties, and" << endl;
-	wcout << " makes no guarantees, expressed or implied, about its quality, reliability, or any" << endl;
-	wcout << " other characteristic. NIST Disclaimer : https://www.nist.gov/disclaimer" << endl;
-	wcout << endl;
-	wcout << " This software is provided by NIST as a public service. You may use, copy and" << endl;
-	wcout << " distribute copies of the software in any medium, provided that you keep intact this" << endl;
-	wcout << " entire notice. You may improve, modify and create derivative works of the software" << endl;
-	wcout << " or any portion of the software, and you may copy and distribute such modifications" << endl;
-	wcout << " or works. Modified works should carry a notice stating that you changed the software" << endl;
-	wcout << " and should note the date and nature of any such change. Please explicitly" << endl;
-	wcout << " acknowledge NIST as the source of the software." << endl;
-	wcout << endl;
 	wcout << "[Credits]" << endl;
-	wcout << " -The translator is based on the Open CASCADE STEP Processor" << endl;
+	wcout << " -Based on the Open CASCADE STEP Processor (OCCT 8.0+)" << endl;
 	wcout << "  (See https://dev.opencascade.org/doc/overview/html/occt_user_guides__step.html)" << endl;
-	wcout << " -Developed and managed by Soonjo Kwon, former NIST associate" << endl;
+	wcout << " -Originally developed at NIST; maintained by Soonjo Kwon" << endl;
+	wcout << "  (Pusan National University, soonjo.kwon@pusan.ac.kr)" << endl;
+	wcout << endl;
+	wcout << "[Disclaimers]" << endl;
+	wcout << " This software was originally developed at the National Institute of Standards and" << endl;
+	wcout << " Technology (NIST). Pursuant to Title 17 Section 105 of the United States Code," << endl;
+	wcout << " NIST-authored portions are not subject to copyright protection in the United States" << endl;
+	wcout << " and are in the public domain. This software is an experimental system. NIST assumes" << endl;
+	wcout << " no responsibility whatsoever for its use by other parties. NIST Disclaimer:" << endl;
+	wcout << " https://www.nist.gov/disclaimer" << endl;
+	wcout << endl;
+	wcout << " Please keep intact the NIST notice for original NIST-authored portions, and" << endl;
+	wcout << " acknowledge NIST as the original source of the software. Modified works should" << endl;
+	wcout << " note the date and nature of changes." << endl;
 }
 
 // Set option values
-bool SetOption(int argc, char * argv[], S2X_Option* opt)
+bool SetOption(const vector<wstring>& args, S2X_Option* opt)
 {
+	const size_t argc = args.size();
+
 	// Print out usage
 	if (argc < 2)
 	{
-		string a = argv[0];
-        wstring aw = StrTool::s2ws(a);
-	
-		PrintUsage(aw, opt);
+		PrintUsage(args[0], opt);
 		//cout << "WRONG USAGE" << std::endl;
 		return false;
 	}
+
+	auto parseInt = [](const wstring& text, const wchar_t* optionName, int& value) -> bool
+	{
+		try
+		{
+			size_t index = 0;
+			value = stoi(text, &index);
+			if (index != text.size())
+				throw invalid_argument("trailing characters");
+			return true;
+		}
+		catch (...)
+		{
+			wcout << L"Invalid integer value for " << optionName << L": " << text << endl;
+			return false;
+		}
+	};
+
+	auto parseDouble = [](const wstring& text, const wchar_t* optionName, double& value) -> bool
+	{
+		try
+		{
+			size_t index = 0;
+			value = stod(text, &index);
+			if (index != text.size())
+				throw invalid_argument("trailing characters");
+			return true;
+		}
+		catch (...)
+		{
+			wcout << L"Invalid numeric value for " << optionName << L": " << text << endl;
+			return false;
+		}
+	};
 	
 	bool inputFlag = false;
 	bool batchFlag = false;
 
 	// Set options
-	for (int i = 1; i < argc; ++i)
+	for (size_t i = 1; i < argc; ++i)
 	{
-		string stoken(argv[i]);
-        wstring token = StrTool::s2ws(stoken);
-	
-		string stoken1(argv[i + 1]);
-        wstring token1 = StrTool::s2ws(stoken1);
+		const wstring& token = args[i];
+		const wstring token1 = (i + 1 < argc) ? args[i + 1] : L"";
 
 		//wcout << token << L" " << token1 << endl;
 
@@ -197,7 +223,9 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--normal")
 				{
-					int normal = stoi(token1);
+					int normal = 0;
+					if (!parseInt(token1, L"--normal", normal))
+						return false;
 					opt->SetNormal(normal);
 
 					if (normal != 0 
@@ -209,7 +237,9 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--color")
 				{
-					int color = stoi(token1);
+					int color = 0;
+					if (!parseInt(token1, L"--color", color))
+						return false;
 					opt->SetColor(color);
 
 					if (color != 0 
@@ -221,7 +251,9 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--edge")
 				{
-					int edge = stoi(token1);
+					int edge = 0;
+					if (!parseInt(token1, L"--edge", edge))
+						return false;
 					opt->SetEdge(edge);
 
 					if (edge != 0 
@@ -233,7 +265,9 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--sketch")
 				{
-					int sketch = stoi(token1);
+					int sketch = 0;
+					if (!parseInt(token1, L"--sketch", sketch))
+						return false;
 					opt->SetSketch(sketch);
 
 					if (sketch != 0
@@ -245,7 +279,9 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--html")
 				{
-					int html = stoi(token1);
+					int html = 0;
+					if (!parseInt(token1, L"--html", html))
+						return false;
 					opt->SetHtml(html);
 
 					if (html != 0 
@@ -257,7 +293,9 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--gdt")
 				{
-					int gdt = stoi(token1);
+					int gdt = 0;
+					if (!parseInt(token1, L"--gdt", gdt))
+						return false;
 					opt->SetGDT(gdt == 1 ? true : false);
 
 					if (gdt != 0
@@ -269,7 +307,9 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--sfa")
 				{
-					int sfa = stoi(token1);
+					int sfa = 0;
+					if (!parseInt(token1, L"--sfa", sfa))
+						return false;
 					opt->SetSFA(sfa == 1 ? true : false);
 
 					if (sfa != 0
@@ -281,7 +321,9 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--tess")
 				{
-					int tess = stoi(token1);
+					int tess = 0;
+					if (!parseInt(token1, L"--tess", tess))
+						return false;
 					opt->SetTessellation(tess);
 
 					if (tess != 0
@@ -293,7 +335,9 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--rosette")
 				{
-					int rosette = stoi(token1);
+					int rosette = 0;
+					if (!parseInt(token1, L"--rosette", rosette))
+						return false;
 					opt->SetRosette(rosette == 1 ? true : false);
 
 					if (rosette != 0
@@ -305,7 +349,9 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--cap")
 				{
-					int cap = stoi(token1);
+					int cap = 0;
+					if (!parseInt(token1, L"--cap", cap))
+						return false;
 					opt->SetSectionCap(cap == 1 ? true : false);
 
 					if (cap != 0
@@ -317,7 +363,9 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--tsolid")
 				{
-					int tsolid = stoi(token1);
+					int tsolid = 0;
+					if (!parseInt(token1, L"--tsolid", tsolid))
+						return false;
 					opt->SetTessSolid(tsolid == 1 ? true : false);
 
 					if (tsolid != 0
@@ -329,7 +377,9 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				}
 				else if (token == L"--quality")
 				{
-					double quality = stof(token1);
+					double quality = 0.0;
+					if (!parseDouble(token1, L"--quality", quality))
+						return false;
 					opt->SetQuality(quality);
 
 					if (quality < 1.0 
@@ -342,12 +392,11 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 				else if (token == L"--batch")
 				{
 					batchFlag = true;
-					int batch = stoi(token1);
-					
-					string stoken2(argv[i + 2]);
-                    wstring token2 = StrTool::s2ws(stoken2);
-			
-					wstring input = token2;
+					int batch = 0;
+					if (!parseInt(token1, L"--batch", batch))
+						return false;
+
+					wstring input = args[i + 2];
 					++i;
 
 					opt->SetBatch(batch);
@@ -377,13 +426,23 @@ bool SetOption(int argc, char * argv[], S2X_Option* opt)
 	// Check input path
 	if (opt->Input().empty())
 	{
-		wcout << "Please input a STEP file." << endl;
+		wcout << "Please input a STEP or AP242 XML (.stpx) file." << endl;
 		return false;
 	}
-	else if (!fs::is_directory(opt->Input())
-		&& !fs::is_regular_file(opt->Input()))
+
+	try
 	{
-		wcout << "No such file or directory: " << opt->Input() << endl;
+		if (!fs::is_directory(opt->Input())
+			&& !fs::is_regular_file(opt->Input()))
+		{
+			wcout << "No such file or directory: " << opt->Input() << endl;
+			return false;
+		}
+	}
+	catch (const fs::filesystem_error& error)
+	{
+		wcout << "Failed to access path: " << opt->Input() << endl;
+		wcout << error.what() << endl;
 		return false;
 	}
 
@@ -399,9 +458,24 @@ int RunSTP2X3D(S2X_Option* opt)
 	sw.Start();
 
 	/** START_STEP **/
-	wcout << "Reading a STEP file.." << endl;
-	STEP_Reader sr(opt);
-	if (!sr.ReadSTEP(model))
+	wstring extension = fs::path(opt->Input()).extension().wstring();
+	transform(extension.begin(), extension.end(), extension.begin(), towlower);
+	const bool isAP242Xml = extension == L".stpx";
+
+	wcout << (isAP242Xml ? L"Reading an AP242 XML file.." : L"Reading a STEP file..") << endl;
+	bool readSucceeded = false;
+	if (isAP242Xml)
+	{
+		AP242XML_Reader reader(opt);
+		readSucceeded = reader.Read(model);
+	}
+	else
+	{
+		STEP_Reader reader(opt);
+		readSucceeded = reader.ReadSTEP(model);
+	}
+
+	if (!readSucceeded)
 	{
 		delete model;
 		return -1;
@@ -420,7 +494,11 @@ int RunSTP2X3D(S2X_Option* opt)
 	/** START_X3D **/
 	wcout << "Writing an X3D file.." << endl;
 	X3D_Writer xw(opt);
-	xw.WriteX3D(model);
+	if (!xw.WriteX3D(model))
+	{
+		delete model;
+		return -1;
+	}
 	/** END_X3D **/
 	//sw.Lap();
 
@@ -446,15 +524,24 @@ int BatchRun(S2X_Option* opt)
 {
 	vector<fs::path> paths;
 
-	if (opt->Batch() == 0) // Only given directory
+	try
 	{
-		for (const auto& entry : fs::directory_iterator(opt->Input()))
-			paths.push_back(entry.path());
+		if (opt->Batch() == 0) // Only given directory
+		{
+			for (const auto& entry : fs::directory_iterator(opt->Input()))
+				paths.push_back(entry.path());
+		}
+		else if (opt->Batch() == 1) // Include subdirectories
+		{
+			for (const auto& entry : fs::recursive_directory_iterator(opt->Input()))
+				paths.push_back(entry.path());
+		}
 	}
-	else if (opt->Batch() == 1) // Include subdirectories
+	catch (const fs::filesystem_error& error)
 	{
-		for (const auto& entry : fs::recursive_directory_iterator(opt->Input()))
-			paths.push_back(entry.path());
+		wcout << "Failed to enumerate batch input: " << opt->Input() << endl;
+		wcout << error.what() << endl;
+		return -1;
 	}
 
 	int status = 0;
@@ -462,10 +549,10 @@ int BatchRun(S2X_Option* opt)
 	for (const auto& path : paths)
 	{
 		wstring ext = path.filename().extension().generic_wstring();
+		transform(ext.begin(), ext.end(), ext.begin(), towlower);
 		
-		if (!(ext == L".stp" || ext == L".STP"
-			|| ext == L".step" || ext == L".STEP"
-			|| ext == L".p21" || ext == L".P21"))
+		if (!(ext == L".stp" || ext == L".step"
+			|| ext == L".p21" || ext == L".stpx"))
 			continue;
 		
 		wstring inFilePath = path.generic_wstring();
@@ -483,11 +570,28 @@ int BatchRun(S2X_Option* opt)
 }
 
 // Main entry function
-int main(int argc, char * argv[])
+// wmain keeps non-ASCII arguments (e.g. accented file names) intact on Windows,
+// where the ANSI main() would mangle characters outside the active code page.
+#ifdef _WIN32
+int wmain(int argc, wchar_t* argv[])
+#else
+int main(int argc, char* argv[])
+#endif
 {	
 	S2X_Option opt; // Option for STEP to X3D translator
 	
 	int status = -1; // Translation status
+
+	vector<wstring> args;
+	args.reserve(argc);
+	for (int i = 0; i < argc; ++i)
+	{
+#ifdef _WIN32
+		args.emplace_back(argv[i]);
+#else
+		args.emplace_back(StrTool::s2ws(argv[i]));
+#endif
+	}
 
 #if _DEBUG
 	opt.SetInput(L"C:\\Users\\User\\Desktop\\100LPH RO Machine.step");
@@ -504,7 +608,7 @@ int main(int argc, char * argv[])
 	opt.SetSectionCap(false);
 	opt.SetTessSolid(true);
 #else
-	if (!SetOption(argc, argv, &opt))
+	if (!SetOption(args, &opt))
 		return status;
 #endif
 

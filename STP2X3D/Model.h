@@ -12,6 +12,7 @@ public:
 	void AddRootComponent(Component*& comp) { m_rootComponents.push_back(comp); }
 	Component* GetRootComponentAt(int index) const { return m_rootComponents[index]; }
 	const int GetRootComponentSize(void) const { return (int)m_rootComponents.size(); }
+	vector<Component*> ReleaseRootComponents(void);
 
 	void GetAllComponents(vector<Component*>& comps) const;
 	void GetLeafComponents(vector<Component*>& comps) const;

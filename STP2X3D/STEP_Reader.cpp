@@ -308,19 +308,12 @@ bool STEP_Reader::IsCopy(Component*& comp)
 
 bool STEP_Reader::IsEmpty(const TopoDS_Shape& shape) const
 {
-	if (!shape.IsNull()
-		|| OCCUtil::HasFace(shape)
-		|| OCCUtil::HasEdge(shape))
-		return false;
+	if (shape.IsNull()
+		|| (m_opt->Sketch() && !OCCUtil::HasEdge(shape))
+		|| (!m_opt->Sketch() && !OCCUtil::HasFace(shape)))
+		return true;
 
-	return true;
-
-	//if (shape.IsNull()
-	//	|| (m_opt->Sketch() && !OCCUtil::HasEdge(shape))	// If sketch is on, check edges
-	//	|| (!m_opt->Sketch() && !OCCUtil::HasFace(shape))) // If sketch is off, check faces
-	//	return true;
-
-	//return false;
+	return false;
 }
 
 void STEP_Reader::AddColors(IShape*& iShape) const
@@ -363,36 +356,42 @@ void STEP_Reader::AddColors(IShape*& iShape) const
 	}
 	else // Wire set (Wires, Edges)
 	{
+		// AP214 sketch colors are often stored as SURFACE_STYLE (ColorSurf), not curve style.
+		auto getWireColor = [this](const TopoDS_Shape& subShape, Quantity_ColorRGBA& color) -> bool
+		{
+			if (m_colorTool->GetColor(subShape, XCAFDoc_ColorCurv, color))
+				return true;
+			if (m_colorTool->GetColor(subShape, XCAFDoc_ColorSurf, color))
+				return true;
+			if (m_colorTool->GetColor(subShape, XCAFDoc_ColorGen, color))
+				return true;
+			return false;
+		};
+
+		Quantity_ColorRGBA shapeColor;
+		const bool isShapeColored = getWireColor(shape, shapeColor);
+
 		// Free wires
 		TopExp_Explorer ExpWire;
 		for (ExpWire.Init(shape, TopAbs_WIRE); ExpWire.More(); ExpWire.Next())
 		{
 			const TopoDS_Shape& wire = ExpWire.Current();
-				
-			// Get wire color
-			Quantity_ColorRGBA wireColor;
-			bool isWireColored = false;
 
-			if (m_colorTool->GetColor(wire, XCAFDoc_ColorCurv, wireColor))
-				isWireColored = true;
-			
+			Quantity_ColorRGBA wireColor;
+			const bool isWireColored = getWireColor(wire, wireColor);
+
 			TopExp_Explorer ExpEdge;
 			for (ExpEdge.Init(wire, TopAbs_EDGE); ExpEdge.More(); ExpEdge.Next())
 			{
 				const TopoDS_Shape& edge = ExpEdge.Current();
-					
-				// Get edge color
-				Quantity_ColorRGBA edgeColor;
-				bool isEdgeColored = false;
 
-				if (m_colorTool->GetColor(edge, XCAFDoc_ColorCurv, edgeColor))
-					isEdgeColored = true;
-				
-				// Priority: edge color -> wire color -> default color
-				if (isEdgeColored)
+				Quantity_ColorRGBA edgeColor;
+				if (getWireColor(edge, edgeColor))
 					iShape->AddColor(edge, edgeColor);
 				else if (isWireColored)
 					iShape->AddColor(edge, wireColor);
+				else if (isShapeColored)
+					iShape->AddColor(edge, shapeColor);
 				else
 					iShape->AddColor(edge, m_defaultWireColor);
 			}
@@ -404,16 +403,11 @@ void STEP_Reader::AddColors(IShape*& iShape) const
 		{
 			const TopoDS_Shape& edge = ExpEdge.Current();
 
-			// Get edge color
 			Quantity_ColorRGBA edgeColor;
-			bool isEdgeColored = false;
-
-			if (m_colorTool->GetColor(edge, XCAFDoc_ColorCurv, edgeColor))
-				isEdgeColored = true;
-
-			// Priority: edge color -> default color
-			if (isEdgeColored)
+			if (getWireColor(edge, edgeColor))
 				iShape->AddColor(edge, edgeColor);
+			else if (isShapeColored)
+				iShape->AddColor(edge, shapeColor);
 			else
 				iShape->AddColor(edge, m_defaultWireColor);
 		}
@@ -535,7 +529,7 @@ void STEP_Reader::ReadGDT(Model*& model) const
 
 				for (int j = 1; j <= fir.Length(); ++j)
 				{
-					const TDF_Label& label_shape = fir.Value(1);
+					const TDF_Label& label_shape = fir.Value(j);
 					const TopoDS_Shape& shape = m_shapeTool->GetShape(label_shape);
 
 					gdt->AddShape(shape);
@@ -543,7 +537,7 @@ void STEP_Reader::ReadGDT(Model*& model) const
 
 				for (int j = 1; j <= sec.Length(); ++j)
 				{
-					const TDF_Label& label_shape = sec.Value(1);
+					const TDF_Label& label_shape = sec.Value(j);
 					const TopoDS_Shape& shape = m_shapeTool->GetShape(label_shape);
 
 					gdt->AddShape(shape);
@@ -605,7 +599,7 @@ void STEP_Reader::ReadGDT(Model*& model) const
 
 				for (int j = 1; j <= fir.Length(); ++j)
 				{
-					const TDF_Label& label_shape = fir.Value(1);
+					const TDF_Label& label_shape = fir.Value(j);
 					const TopoDS_Shape& shape = m_shapeTool->GetShape(label_shape);
 
 					gdt->AddShape(shape);
@@ -613,7 +607,7 @@ void STEP_Reader::ReadGDT(Model*& model) const
 
 				for (int j = 1; j <= sec.Length(); ++j)
 				{
-					const TDF_Label& label_shape = sec.Value(1);
+					const TDF_Label& label_shape = sec.Value(j);
 					const TopoDS_Shape& shape = m_shapeTool->GetShape(label_shape);
 
 					gdt->AddShape(shape);
@@ -680,7 +674,7 @@ void STEP_Reader::ReadGDT(Model*& model) const
 
 				for (int j = 1; j <= fir.Length(); ++j)
 				{
-					const TDF_Label& label_shape = fir.Value(1);
+					const TDF_Label& label_shape = fir.Value(j);
 					const TopoDS_Shape& shape = m_shapeTool->GetShape(label_shape);
 
 					gdt->AddShape(shape);
@@ -688,7 +682,7 @@ void STEP_Reader::ReadGDT(Model*& model) const
 
 				for (int j = 1; j <= sec.Length(); ++j)
 				{
-					const TDF_Label& label_shape = sec.Value(1);
+					const TDF_Label& label_shape = sec.Value(j);
 					const TopoDS_Shape& shape = m_shapeTool->GetShape(label_shape);
 
 					gdt->AddShape(shape);

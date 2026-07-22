@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "Component.h"
 #include "IShape.h"
+#include <algorithm>
 
 
 Component::Component(const TopoDS_Shape& shape)
@@ -14,6 +15,12 @@ Component::Component(const TopoDS_Shape& shape)
 
 Component::~Component(void)
 {
+	if (m_originalComponent)
+	{
+		m_originalComponent->RemoveCopiedComponent(this);
+		m_originalComponent = nullptr;
+	}
+
 	Clear();
 }
 
@@ -33,6 +40,13 @@ void Component::SetOriginalComponent(Component*& originalComp)
 
 	if (originalComp)
 		originalComp->AddCopiedComponent(this);
+}
+
+void Component::RemoveCopiedComponent(Component* copiedComp)
+{
+	m_copiedComponents.erase(
+		remove(m_copiedComponents.begin(), m_copiedComponents.end(), copiedComp),
+		m_copiedComponents.end());
 }
 
 void Component::AddSubComponent(Component*& subComp)
@@ -115,10 +129,13 @@ void Component::CleanEmptySubComponents(void)
 		Component* subComp = GetSubComponentAt(i);
 		subComp->CleanEmptySubComponents();
 
-		// Skip if the subcomp is a copy
-		if (subComp->IsCopy()
-			&& !subComp->GetOriginalComponent()->IsEmpty())
-			continue;
+		// Skip if the subcomp is a copy of a still-valid original
+		if (subComp->IsCopy())
+		{
+			Component* original = subComp->GetOriginalComponent();
+			if (original && !original->IsEmpty())
+				continue;
+		}
 
 		// Remove subcomponents having neither IShape nor child
 		if (subComp->IsEmpty())
@@ -304,6 +321,13 @@ TopoDS_Shape Component::GetTransformedShape(void)
 
 void Component::Clear(void)
 {
+	for (auto copiedComp : m_copiedComponents)
+	{
+		if (copiedComp)
+			copiedComp->m_originalComponent = nullptr;
+	}
+	m_copiedComponents.clear();
+
 	for (auto subComp : m_subComponents)
 		delete subComp;
 	
@@ -313,9 +337,4 @@ void Component::Clear(void)
 		delete iShape;
 	
 	m_iShapes.clear();
-
-	//for (auto copiedComp : m_copiedComponents)
-	//	copiedComp->SetOriginalComponent(nullptr);
-
-	m_copiedComponents.clear();
 }

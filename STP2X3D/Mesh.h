@@ -1,23 +1,31 @@
 #pragma once
 
-typedef vector<int> Index;
+typedef array<int, 3> TriIndex;
+typedef vector<int> EdgeIndex;
 
 class Mesh 
 {
 public:
 	Mesh(const TopoDS_Shape& shape);
+	Mesh(const Mesh& mesh);
 	~Mesh(void);
 
 	void AddFaceIndex(int v1, int v2, int v3);
 	void AddNormalIndex(int v1, int v2, int v3);
-	void AddEdgeIndex(Index edgeIndex);
+	void AddEdgeIndex(EdgeIndex edgeIndex);
 	void AddCoordinate(const gp_XYZ& coord) { m_coordinates.push_back(coord); }
 	void AddNormal(const gp_XYZ& norm) { m_normals.push_back(norm); }
 
+	void ReserveCoordinates(int count) { m_coordinates.reserve(count); }
+	void ReserveNormals(int count) { m_normals.reserve(count); }
+	void ReserveFaceIndexes(int count) { m_faceIndexes.reserve(count); }
+	void ReserveNormalIndexes(int count) { m_normalIndexes.reserve(count); }
+	void ReserveEdgeIndexes(int count) { m_edgeIndexes.reserve(count); }
+
 	const TopoDS_Shape& GetShape(void) const { return m_shape; }
-	const Index& GetFaceIndexAt(int index) const { return m_faceIndexes[index]; }
-	const Index& GetNormalIndexAt(int index) const { return m_normalIndexes[index]; }
-	const Index& GetEdgeIndexAt(int index) const { return m_edgeIndexes[index]; }
+	const TriIndex& GetFaceIndexAt(int index) const { return m_faceIndexes[index]; }
+	const TriIndex& GetNormalIndexAt(int index) const { return m_normalIndexes[index]; }
+	const EdgeIndex& GetEdgeIndexAt(int index) const { return m_edgeIndexes[index]; }
 	const gp_XYZ& GetCoordinateAt(int index) const { return m_coordinates[index]; }
 	const gp_XYZ& GetNormalAt(int index) const { return m_normals[index]; }
 
@@ -38,7 +46,7 @@ private:
 	vector<gp_XYZ> m_coordinates;
 	vector<gp_XYZ> m_normals;
 
-	vector<Index> m_faceIndexes;
-	vector<Index> m_normalIndexes;
-	vector<Index> m_edgeIndexes;
+	vector<TriIndex> m_faceIndexes;
+	vector<TriIndex> m_normalIndexes;
+	vector<EdgeIndex> m_edgeIndexes;
 };

@@ -38,8 +38,8 @@ public:
 	bool SectionCap(void) const { return m_cap; }
 	bool TessSolid(void) const { return m_tessSolid; }
 
-	// Software version (as of August 2024)
-	const wstring Version(void) const { return L"1.50"; }
+	// Software version (as of July 2026)
+	const wstring Version(void) const { return L"2.0"; }
 
 private:
 	wstring m_input;	// Input file path

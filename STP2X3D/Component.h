@@ -53,6 +53,7 @@ public:
 
 protected:
 	void AddCopiedComponent(Component* copiedComp) { m_copiedComponents.push_back(copiedComp); }
+	void RemoveCopiedComponent(Component* copiedComp);
 	Component* GetCopiedComponentAt(int index) const { return m_copiedComponents[index]; }
 	int GetCopiedComponentSize(void) const { return (int)m_copiedComponents.size(); }
 

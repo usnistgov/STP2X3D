@@ -43,10 +43,57 @@ void IShape::AddColor(const TopoDS_Shape& shape, const Quantity_ColorRGBA& color
 
 const Quantity_ColorRGBA& IShape::GetColor(const TopoDS_Shape& shape) const
 {
-	int shapeID = OCCUtil::GetID(shape);
-	const Quantity_ColorRGBA& color = m_shapeIDcolorMap.find(shapeID)->second;
+	static const Quantity_ColorRGBA defaultColor(0.55f, 0.55f, 0.6f, 1.0f);
 
-	return color;
+	int shapeID = OCCUtil::GetID(shape);
+	const auto color = m_shapeIDcolorMap.find(shapeID);
+	if (color == m_shapeIDcolorMap.end())
+	{
+		if (!m_colorList.empty())
+			return m_colorList.front();
+		return defaultColor;
+	}
+
+	return color->second;
+}
+
+const Quantity_ColorRGBA& IShape::GetColor(void) const
+{
+	static const Quantity_ColorRGBA defaultColor(0.55f, 0.55f, 0.6f, 1.0f);
+	if (m_colorList.empty())
+		return defaultColor;
+
+	return m_colorList.front();
+}
+
+void IShape::EnsureDefaultColors(const Quantity_ColorRGBA& faceColor, const Quantity_ColorRGBA& wireColor)
+{
+	if (HasColor())
+		return;
+
+	const TopoDS_Shape& shape = GetShape();
+	if (IsFaceSet())
+	{
+		bool added = false;
+		for (TopExp_Explorer expFace(shape, TopAbs_FACE); expFace.More(); expFace.Next())
+		{
+			AddColor(expFace.Current(), faceColor);
+			added = true;
+		}
+		if (!added)
+			AddColor(shape, faceColor);
+	}
+	else
+	{
+		bool added = false;
+		for (TopExp_Explorer expEdge(shape, TopAbs_EDGE); expEdge.More(); expEdge.Next())
+		{
+			AddColor(expEdge.Current(), wireColor);
+			added = true;
+		}
+		if (!added)
+			AddColor(shape, wireColor);
+	}
 }
 
 bool IShape::IsSingleTransparent(void) const

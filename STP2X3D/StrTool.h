@@ -1,5 +1,8 @@
 #pragma once
 
+#include <codecvt>
+#include <locale>
+
 class StrTool
 {
 public:

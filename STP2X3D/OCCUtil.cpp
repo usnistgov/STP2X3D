@@ -107,9 +107,37 @@ namespace OCCUtil
 		return trsfShape;
 	}
 
+	bool HasPolygonalData(const TopoDS_Shape& shape)
+	{
+		TopLoc_Location loc;
+
+		for (TopExp_Explorer expFace(shape, TopAbs_FACE); expFace.More(); expFace.Next())
+		{
+			const TopoDS_Face& face = TopoDS::Face(expFace.Current());
+			const Handle(Poly_Triangulation)& triangulation = BRep_Tool::Triangulation(face, loc);
+
+			if (!triangulation.IsNull())
+				return true;
+		}
+
+		for (TopExp_Explorer expEdge(shape, TopAbs_EDGE); expEdge.More(); expEdge.Next())
+		{
+			const TopoDS_Edge& edge = TopoDS::Edge(expEdge.Current());
+			const Handle(Poly_Polygon3D)& polygon = BRep_Tool::Polygon3D(edge, loc);
+
+			if (!polygon.IsNull())
+				return true;
+		}
+
+		return false;
+	}
+
 	bool TessellateShape(const TopoDS_Shape& shape, double linearDeflection, bool isRelative, double angularDeflection, bool isParallel)
 	{
-		BRepTools::Clean(shape);
+		// Clean only when old polygonal data would change IncrementalMesh behavior.
+		if (HasPolygonalData(shape))
+			BRepTools::Clean(shape);
+
 		BRepMesh_IncrementalMesh bMesh(shape, linearDeflection, isRelative, angularDeflection, isParallel);
 		
 		return bMesh.IsDone();
@@ -151,15 +179,19 @@ namespace OCCUtil
 	double GetDeflection(const TopoDS_Shape& shape)
 	{
 		Bnd_Box bndBox = ComputeBoundingBox(shape);
-		
 		bndBox = bndBox.FinitePart();
+		if (bndBox.IsVoid())
+			return Precision::Confusion();
 
 		gp_Pnt minPnt = bndBox.CornerMin();
 		gp_Pnt maxPnt = bndBox.CornerMax();
 
 		double deviationCoefficient = 0.001;
 
-		double deflection = Prs3d::GetDeflection(Graphic3d_Vec3d(minPnt.X(), minPnt.Y(), minPnt.Z()), Graphic3d_Vec3d(maxPnt.X(), maxPnt.Y(), maxPnt.Z()), deviationCoefficient);
+		double deflection = Prs3d::GetDeflection(
+			NCollection_Vec3<double>(minPnt.X(), minPnt.Y(), minPnt.Z()),
+			NCollection_Vec3<double>(maxPnt.X(), maxPnt.Y(), maxPnt.Z()),
+			deviationCoefficient);
 		
 		return Max(deflection, Precision::Confusion());
 	}

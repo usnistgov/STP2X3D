@@ -17,13 +17,15 @@ public:
 	void SetSectionCap(bool isSectionCap) { m_isSectionCap = isSectionCap; }
 	void SetTessSolidModel(bool isTessSolidModel) { m_isTessSolidModel = isTessSolidModel; }
 	void AddColor(const TopoDS_Shape& shape, const Quantity_ColorRGBA& color);
+	void EnsureDefaultColors(const Quantity_ColorRGBA& faceColor, const Quantity_ColorRGBA& wireColor);
 	void AddMesh(Mesh*& mesh) { m_meshList.push_back(mesh); }
 
 	const wstring& GetName(void) const { return m_name; }
 	Component* GetComponent(void) const { return m_component; }
 	const TopoDS_Shape& GetShape(void) const { return m_shape; }
 	const Quantity_ColorRGBA& GetColor(const TopoDS_Shape& shape) const;
-	const Quantity_ColorRGBA& GetColor(void) const { return m_colorList.at(0); }
+	const Quantity_ColorRGBA& GetColor(void) const;
+	bool HasColor(void) const { return !m_colorList.empty(); }
 
 	Mesh* GetMeshAt(int index) const { return m_meshList[index]; }
 	const int GetGlobalIndex(void) const { return m_globalIndex; }

@@ -202,7 +202,7 @@ void STEP_Data::AddRosetteGeometries(vector<TopoDS_Shape>& rosettes)
 				if (isCURVE_11)
 					undefEnt = Handle(StepData_UndefinedEntity)::DownCast(entity);
 				else
-					return;
+					continue;
 
 				// Generate a composite_curve
 				while (undefEnt)
@@ -385,7 +385,7 @@ double STEP_Data::GetUnitConversionFactor(void)
 			if (name != "inch")
 				continue;
 
-			Handle(StepBasic_MeasureWithUnit) mwu = convUnit->ConversionFactor();
+			Handle(StepBasic_MeasureWithUnit) mwu = Handle(StepBasic_MeasureWithUnit)::DownCast(convUnit->ConversionFactor());
 			Handle(StepBasic_MeasureValueMember) mvm = mwu->ValueComponentMember();
 
 			string type = mvm->Name();
