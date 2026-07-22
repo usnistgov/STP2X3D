@@ -10,11 +10,23 @@
 
 namespace
 {
-// X3D Material colors are display (sRGB) values; OCCT stores linear RGB internally.
+// X3D Material diffuse/emissive from STEP are display (sRGB) values;
+// OCCT stores linear RGB internally.
 void AppendDisplayColor(X3D_Text& out, const Quantity_Color& color)
 {
 	double r, g, b;
 	color.Values(r, g, b, Quantity_TOC_sRGB);
+	out << NumTool::DoubleToWString(r) << " ";
+	out << NumTool::DoubleToWString(g) << " ";
+	out << NumTool::DoubleToWString(b);
+}
+
+// Fixed Material parameters are authored as literal X3D RGB and must not
+// be re-encoded through sRGB conversion.
+void AppendFixedColor(X3D_Text& out, const Quantity_Color& color)
+{
+	double r, g, b;
+	color.Values(r, g, b, Quantity_TOC_RGB);
 	out << NumTool::DoubleToWString(r) << " ";
 	out << NumTool::DoubleToWString(g) << " ";
 	out << NumTool::DoubleToWString(b);
@@ -30,6 +42,7 @@ X3D_Writer::X3D_Writer(S2X_Option* opt)
 	m_specularColor.SetValues(0.2, 0.2, 0.2, Quantity_TOC_RGB);
 	m_gdtColor.SetValues(0.5, 0.1, 0.1, Quantity_TOC_RGB);
 	m_gdtColor2.SetValues(0.1, 0.1, 1, Quantity_TOC_RGB);
+	m_sectionCapColor.SetValues(0.65, 0.65, 0.7, Quantity_TOC_RGB);
 
 	m_shininess = 0.9;
 	m_ambientIntensity = 1.0;
@@ -640,21 +653,21 @@ void X3D_Writer::WriteAppearance(X3D_Text& out, IShape*& iShape, const Quantity_
 	if (isDiffuseOn)
 	{
 		out << " diffuseColor='";
-		AppendDisplayColor(out, diffuseColor);
+		AppendMaterialColor(out, diffuseColor);
 		out << "'";
 	}
 
 	if (isEmissiveOn)
 	{
 		out << " emissiveColor='";
-		AppendDisplayColor(out, emissiveColor);
+		AppendMaterialColor(out, emissiveColor);
 		out << "'";
 	}
 
 	if (isSpecularOn)
 	{
 		out << " specularColor='";
-		AppendDisplayColor(out, specularColor);
+		AppendFixedColor(out, specularColor);
 		out << "'";
 	}
 
@@ -810,6 +823,27 @@ void X3D_Writer::WriteNormalIndex(X3D_Text& out, IShape*& iShape) const
 	out << "'";
 }
 
+bool X3D_Writer::IsFixedLiteralColor(const Quantity_Color& color) const
+{
+	static const Quantity_Color black(0.0, 0.0, 0.0, Quantity_TOC_RGB);
+
+	return color.IsEqual(m_diffuseColor)
+		|| color.IsEqual(m_emissiveColor)
+		|| color.IsEqual(m_specularColor)
+		|| color.IsEqual(m_gdtColor)
+		|| color.IsEqual(m_gdtColor2)
+		|| color.IsEqual(m_sectionCapColor)
+		|| color.IsEqual(black);
+}
+
+void X3D_Writer::AppendMaterialColor(X3D_Text& out, const Quantity_Color& color) const
+{
+	if (IsFixedLiteralColor(color))
+		AppendFixedColor(out, color);
+	else
+		AppendDisplayColor(out, color);
+}
+
 void X3D_Writer::WriteColor(X3D_Text& out, IShape*& iShape) const
 {
 	bool isMultiTransparent = iShape->IsMultiTransparent();
@@ -831,7 +865,7 @@ void X3D_Writer::WriteColor(X3D_Text& out, IShape*& iShape) const
 
 			if (!firstColor)
 				out << " ";
-			AppendDisplayColor(out, color.GetRGB());
+			AppendMaterialColor(out, color.GetRGB());
 
 			if (isMultiTransparent)
 			{
@@ -1032,7 +1066,7 @@ void X3D_Writer::WriteSketchGeometry(X3D_Text& out, IShape*& iShape, int level)
 		out << Indent(level + 1);
 		out << "<Appearance><Material";
 		out << " emissiveColor='";
-		AppendDisplayColor(out, color);
+		AppendMaterialColor(out, color);
 		out << "'";
 		out << "></Material></Appearance>\n";
 	}

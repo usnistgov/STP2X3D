@@ -48,4 +48,4 @@ STP2X3D.exe --input Model.stp --output Out.html --html 1 --sfa 1
 
 ## Contact
 
-- Soonjo Kwon, [soonjo.kwon@pusan.ac.kr](mailto:soonjo.kwon@pusan.ac.kr) — Pusan National University
+- Soonjo Kwon, [soonjo.kwon@pusan.ac.kr](mailto:soonjo.kwon@pusan.ac.kr)

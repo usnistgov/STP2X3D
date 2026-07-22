@@ -56,6 +56,10 @@ protected:
 	void WriteColor(X3D_Text& out, IShape*& iShape) const;
 	void WriteNormal(X3D_Text& out, IShape*& iShape) const;
 
+	// Authored X3D literals (defaults, GDT, caps, etc.) vs STEP-derived display colors.
+	bool IsFixedLiteralColor(const Quantity_Color& color) const;
+	void AppendMaterialColor(X3D_Text& out, const Quantity_Color& color) const;
+
 	const wstring Indent(int level) const;
 
 	bool CheckSameAppearance(const Quantity_Color& diffuseColor, bool isDiffuseOn,
@@ -84,6 +88,7 @@ private:
 	Quantity_Color m_emissiveColor;
 	Quantity_Color m_specularColor;
 	Quantity_Color m_gdtColor, m_gdtColor2;
+	Quantity_Color m_sectionCapColor;
 
 	double m_shininess;
 	double m_ambientIntensity;
