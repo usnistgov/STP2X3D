@@ -424,13 +424,17 @@ namespace
 			}
 
 			const string schema = Attribute(root, "schemaLocation");
-			if (schema.find("domain_model") == string::npos)
+			const bool isDomainModel = schema.find("domain_model") != string::npos;
+			const bool isCaxIfBom = schema.find("cax-if.de") != string::npos
+				|| schema.find("bom_") != string::npos;
+			if (!isDomainModel && !isCaxIfBom)
 			{
-				Report("Input is not an AP242 Domain Model XML document.");
+				Report("Input is not an AP242 Domain Model / CAX-IF BOM XML document.");
 				return nullptr;
 			}
 
 			CollectFiles(root);
+			CollectDocumentFileRefs(root);
 			CollectGeometryFiles(root);
 			CollectParts(root);
 			if (m_parts.empty())
@@ -474,6 +478,56 @@ namespace
 			}
 		}
 
+		void CollectDocumentFileRefs(const XmlNode* root)
+		{
+			// 3DEXPERIENCE / CAX-IF: AssignedDocument often points at DocumentVersion,
+			// which then references the DigitalFile (actual .stp). Existing Datakit
+			// samples already point AssignedDocument directly at File.
+			vector<const XmlNode*> versions;
+			FindDescendants(root, "DocumentVersion", versions);
+			for (const XmlNode* version : versions)
+			{
+				const string versionUid = Attribute(version, "uid");
+				if (versionUid.empty())
+					continue;
+
+				vector<const XmlNode*> digitalFiles;
+				FindDescendants(version, "DigitalFile", digitalFiles);
+
+				string mappedFileUid;
+				for (const XmlNode* digitalFile : digitalFiles)
+				{
+					const string fileUid = Attribute(digitalFile, "uidRef");
+					if (fileUid.empty())
+						continue;
+					if (m_fileNames.find(fileUid) != m_fileNames.end())
+					{
+						mappedFileUid = fileUid;
+						break;
+					}
+					if (mappedFileUid.empty())
+						mappedFileUid = fileUid;
+				}
+
+				if (!mappedFileUid.empty())
+					m_documentFileRefs[versionUid] = mappedFileUid;
+			}
+		}
+
+		string ResolveFileUid(const string& uid) const
+		{
+			if (uid.empty())
+				return uid;
+			if (m_fileNames.find(uid) != m_fileNames.end())
+				return uid;
+
+			const auto mapped = m_documentFileRefs.find(uid);
+			if (mapped != m_documentFileRefs.end())
+				return mapped->second;
+
+			return uid;
+		}
+
 		void CollectGeometryFiles(const XmlNode* root)
 		{
 			vector<const XmlNode*> representations;
@@ -515,7 +569,7 @@ namespace
 				part.geometryUid = Attribute(Child(partView, "DefiningGeometry"), "uidRef");
 
 				const XmlNode* assignedDocument = FirstDescendant(partNode, "AssignedDocument");
-				part.fileUid = Attribute(assignedDocument, "uidRef");
+				part.fileUid = ResolveFileUid(Attribute(assignedDocument, "uidRef"));
 
 				vector<const XmlNode*> occurrences;
 				FindDescendants(partView, "Occurrence", occurrences);
@@ -637,7 +691,11 @@ namespace
 
 				Component* child = BuildPart(childPart->second);
 				if (!child)
-					return failAssembly("");
+				{
+					// Keep going so remaining children can still produce X3D output.
+					Report("Skipping AP242 child part: " + childPart->second.uid);
+					continue;
+				}
 
 				child->SetTransformation(relationship.transformation);
 				assembly->AddSubComponent(child);
@@ -672,6 +730,14 @@ namespace
 
 		Component* LoadExternalGeometry(PartInfo& part)
 		{
+			// On missing/failed externals, keep the error message but return an empty
+			// placeholder so sibling parts can still be translated to X3D.
+			auto missingGeometry = [&](const string& message) -> Component*
+			{
+				Report(message);
+				return new Component(TopoDS_Shape());
+			};
+
 			string fileUid = part.fileUid;
 			if (fileUid.empty())
 			{
@@ -688,18 +754,12 @@ namespace
 
 			const auto file = m_fileNames.find(fileUid);
 			if (file == m_fileNames.end())
-			{
-				Report("No external STEP file for AP242 part: " + part.uid);
-				return nullptr;
-			}
+				return missingGeometry("No external STEP file for AP242 part: " + part.uid);
 
 			const filesystem::path externalPath =
 				(m_xmlPath.parent_path() / file->second).lexically_normal();
 			if (!filesystem::is_regular_file(externalPath))
-			{
-				Report("Referenced AP242 file does not exist: " + externalPath.u8string());
-				return nullptr;
-			}
+				return missingGeometry("Referenced AP242 file does not exist: " + externalPath.u8string());
 
 			string extension = externalPath.extension().u8string();
 			transform(extension.begin(), extension.end(), extension.begin(),
@@ -707,7 +767,11 @@ namespace
 			if (extension == ".stpx")
 			{
 				ReaderImpl nestedReader(m_opt, externalPath, m_readingFiles);
-				return nestedReader.ReadComponent();
+				Component* nested = nestedReader.ReadComponent();
+				// Nested reader already reported the failure reason.
+				if (!nested)
+					return new Component(TopoDS_Shape());
+				return nested;
 			}
 
 			const bool wantColor = m_opt->Color();
@@ -721,10 +785,7 @@ namespace
 			Model partModel;
 			STEP_Reader reader(&partOption);
 			if (!reader.ReadSTEP(&partModel))
-			{
-				Report("Failed to load referenced STEP file: " + externalPath.u8string());
-				return nullptr;
-			}
+				return missingGeometry("Failed to load referenced STEP file: " + externalPath.u8string());
 
 			// Colorless external STEP files disable color on the temporary option,
 			// which skips default color assignment. The parent writer may still
@@ -747,7 +808,7 @@ namespace
 
 			vector<Component*> roots = partModel.ReleaseRootComponents();
 			if (roots.empty())
-				return nullptr;
+				return missingGeometry("Referenced STEP file has no geometry: " + externalPath.u8string());
 			if (roots.size() == 1)
 				return roots.front();
 
@@ -767,7 +828,9 @@ namespace
 
 		bool Report(const string& message) const
 		{
-			cerr << "\t" << message << endl;
+			// Use stdout so SFA and typical console captures show the warning.
+			// (stderr alone is easy to miss when translation still succeeds.)
+			cout << "\t" << message << endl;
 			return false;
 		}
 
@@ -776,6 +839,7 @@ namespace
 		set<filesystem::path>& m_readingFiles;
 		SimpleXmlDocument m_document;
 		unordered_map<string, filesystem::path> m_fileNames;
+		unordered_map<string, string> m_documentFileRefs;
 		unordered_map<string, string> m_geometryFiles;
 		unordered_map<string, PartInfo> m_parts;
 		unordered_map<string, string> m_occurrenceParts;
