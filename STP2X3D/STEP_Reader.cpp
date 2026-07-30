@@ -260,15 +260,7 @@ const wstring STEP_Reader::GetName(const TDF_Label& label) const
 	if (label.FindAttribute(TDataStd_Name::GetID(), nameData))
         nameText = nameData->Get();
 	
-	/*
-    stringstream ss;
-    ss << nameText << endl;
-
-	string s = ss.str();
-    wstring name = StrTool::s2ws(s); //nameText.ToWideString();
-	*/
-
-	// Convert UTF-16 string(char16_t) to UTF-8 string(wstring)
+	// Convert UTF-16 string(char16_t) to wide string
 	wstring name = StrTool::u16str2wstr(nameText.ToExtString());
 
 	// Remove extra linefeed
@@ -308,12 +300,18 @@ bool STEP_Reader::IsCopy(Component*& comp)
 
 bool STEP_Reader::IsEmpty(const TopoDS_Shape& shape) const
 {
-	if (shape.IsNull()
-		|| (m_opt->Sketch() && !OCCUtil::HasEdge(shape))
-		|| (!m_opt->Sketch() && !OCCUtil::HasFace(shape)))
+	if (shape.IsNull())
 		return true;
 
-	return false;
+	// Face geometry (BRep / tessellated solids) is always kept.
+	if (OCCUtil::HasFace(shape))
+		return false;
+
+	// Edge-only sketches are kept only when --sketch is enabled.
+	if (m_opt->Sketch() && OCCUtil::HasEdge(shape))
+		return false;
+
+	return true;
 }
 
 void STEP_Reader::AddColors(IShape*& iShape) const

@@ -589,7 +589,15 @@ int main(int argc, char* argv[])
 #ifdef _WIN32
 		args.emplace_back(argv[i]);
 #else
-		args.emplace_back(StrTool::s2ws(argv[i]));
+		// Linux/macOS argv is UTF-8; avoid locale mbstowcs (unchecked failure → OOB).
+		try
+		{
+			args.emplace_back(fs::u8path(argv[i]).wstring());
+		}
+		catch (const std::exception&)
+		{
+			args.emplace_back(StrTool::str2wstr(argv[i]));
+		}
 #endif
 	}
 

@@ -60,7 +60,6 @@ STP2X3D.exe --input Assembly.stpx --html 1
 ## Contact
 
 - Soonjo Kwon, [soonjo.kwon@pusan.ac.kr](mailto:soonjo.kwon@pusan.ac.kr)
-- William Z. Bernstein, [william.bernstein@afresearchlab.com](mailto:william.bernstein@afresearchlab.com)
 
 ## Used By
 

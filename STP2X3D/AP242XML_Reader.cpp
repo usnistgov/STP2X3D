@@ -427,9 +427,12 @@ namespace
 			const bool isDomainModel = schema.find("domain_model") != string::npos;
 			const bool isCaxIfBom = schema.find("cax-if.de") != string::npos
 				|| schema.find("bom_") != string::npos;
-			if (!isDomainModel && !isCaxIfBom)
+			// Older Datakit ISO BO Model (e.g. km1-old 2018): .../bo_model/.../bom.xsd
+			const bool isIsoBoModel = schema.find("bo_model") != string::npos
+				|| schema.find("/bom.xsd") != string::npos;
+			if (!isDomainModel && !isCaxIfBom && !isIsoBoModel)
 			{
-				Report("Input is not an AP242 Domain Model / CAX-IF BOM XML document.");
+				Report("Input is not an AP242 Domain Model / BOM XML document.");
 				return nullptr;
 			}
 
@@ -599,9 +602,14 @@ namespace
 
 				// Some exporters label intermediate nodes as piece parts while still
 				// emitting next-assembly relationships under the same PartView.
+				// Older Datakit BO Model uses PartTypes "product" for the root assembly,
+				// and may mark leaf parts with AssemblyDefinition even when they only
+				// reference an external STEP file.
+				const bool assemblyView = TypeName(partView) == "AssemblyDefinition";
 				part.isAssembly = partType == "assembly"
-					|| TypeName(partView) == "AssemblyDefinition"
-					|| !part.relationships.empty();
+					|| partType == "product"
+					|| !part.relationships.empty()
+					|| (assemblyView && part.fileUid.empty());
 
 				m_parts[part.uid] = std::move(part);
 			}
@@ -683,11 +691,18 @@ namespace
 			{
 				const auto occurrence = m_occurrenceParts.find(relationship.occurrenceUid);
 				if (occurrence == m_occurrenceParts.end())
-					return failAssembly("Unresolved AP242 occurrence: " + relationship.occurrenceUid);
+				{
+					// Older BO Model packages may interleave kinematic refs in NAOU lists.
+					Report("Unresolved AP242 occurrence: " + relationship.occurrenceUid);
+					continue;
+				}
 
 				auto childPart = m_parts.find(occurrence->second);
 				if (childPart == m_parts.end())
-					return failAssembly("Unresolved AP242 part: " + occurrence->second);
+				{
+					Report("Unresolved AP242 part: " + occurrence->second);
+					continue;
+				}
 
 				Component* child = BuildPart(childPart->second);
 				if (!child)
@@ -831,6 +846,7 @@ namespace
 			// Use stdout so SFA and typical console captures show the warning.
 			// (stderr alone is easy to miss when translation still succeeds.)
 			cout << "\t" << message << endl;
+			cout.flush();
 			return false;
 		}
 
