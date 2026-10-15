@@ -399,6 +399,73 @@ void X3D_Writer::WriteShape(X3D_Text& out, IShape*& iShape, int level)
 	if (iShape->IsFaceSet())
 	{
 		wstring shapeId = iShape->GetUniqueName();
+
+		// One Material per colour. A per-vertex Color node is kept only when
+		// boundary edges reuse the full coordinate DEF.
+		if (iShape->IsMultiColored()
+			&& m_opt->Color()
+			&& !m_opt->Edge())
+		{
+			struct ColorGroup
+			{
+				Quantity_ColorRGBA color;
+				vector<int> meshes;
+			};
+
+			vector<ColorGroup> groups;
+
+			for (int i = 0; i < iShape->GetMeshSize(); ++i)
+			{
+				Mesh* mesh = iShape->GetMeshAt(i);
+				const Quantity_ColorRGBA& color = iShape->GetColor(mesh->GetShape());
+				ColorGroup* group = nullptr;
+
+				for (auto& candidate : groups)
+				{
+					if (candidate.color.GetRGB().IsEqual(color.GetRGB())
+						&& abs(candidate.color.Alpha() - color.Alpha()) <= Precision::Confusion())
+					{
+						group = &candidate;
+						break;
+					}
+				}
+
+				if (!group)
+				{
+					groups.push_back(ColorGroup());
+					group = &groups.back();
+					group->color = color;
+				}
+
+				group->meshes.push_back(i);
+			}
+
+			if (groups.size() >= 2)
+			{
+				for (size_t g = 0; g < groups.size(); ++g)
+				{
+					out << Indent(level);
+					out << "<Shape";
+
+					if (m_opt->SFA())
+						out << " id='" << shapeId << "'";
+
+					out << " DEF='" << iShape->GetName();
+
+					if (g > 0)
+						out << "_" << to_wstring(g + 1);
+
+					out << "'>\n";
+
+					WriteIndexedFaceSet(out, iShape, level + 1, &groups[g].meshes, &groups[g].color);
+
+					out << Indent(level);
+					out << "</Shape>\n";
+				}
+
+				return;
+			}
+		}
 		
 		out << Indent(level);
 		out << "<Shape";
@@ -453,10 +520,12 @@ void X3D_Writer::WriteShape(X3D_Text& out, IShape*& iShape, int level)
 	}
 }
 
-void X3D_Writer::WriteIndexedFaceSet(X3D_Text& out, IShape*& iShape, int level)
+void X3D_Writer::WriteIndexedFaceSet(X3D_Text& out, IShape*& iShape, int level, const vector<int>* meshFilter, const Quantity_ColorRGBA* groupColor)
 {
-	bool isMultiColored = iShape->IsMultiColored();
-	bool isSingleTransparent = iShape->IsSingleTransparent();
+	bool isMultiColored = groupColor == nullptr && iShape->IsMultiColored();
+	bool isSingleTransparent = groupColor == nullptr
+		? iShape->IsSingleTransparent()
+		: groupColor->Alpha() < 1.0;
 	double transparency = m_transparency;
 
 	// Write Appearance node
@@ -478,7 +547,9 @@ void X3D_Writer::WriteIndexedFaceSet(X3D_Text& out, IShape*& iShape, int level)
 	{
 		Quantity_ColorRGBA color(m_diffuseColor);
 
-		if (m_opt->Color())
+		if (groupColor)
+			color = *groupColor;
+		else if (m_opt->Color())
 			color = iShape->GetColor(); // Set diffuse color
 
 		if (isSingleTransparent)
@@ -505,18 +576,18 @@ void X3D_Writer::WriteIndexedFaceSet(X3D_Text& out, IShape*& iShape, int level)
 	
 	out << " solid='false'";
 
-	WriteCoordinateIndex(out, iShape, true);
+	WriteCoordinateIndex(out, iShape, true, meshFilter);
 
 	if (m_opt->Normal()
 		&& !isSectionCap
 		&& !isTessSolidModel)
-		WriteNormalIndex(out, iShape);
+		WriteNormalIndex(out, iShape, meshFilter);
 	
 	out << ">\n";
 
 	// Write coordinates
 	out << Indent(level + 1);
-	WriteCoordinate(out, iShape, false);
+	WriteCoordinate(out, iShape, false, meshFilter);
 
 	// Write normals
 	if (m_opt->Normal()
@@ -524,7 +595,7 @@ void X3D_Writer::WriteIndexedFaceSet(X3D_Text& out, IShape*& iShape, int level)
 		&& !isTessSolidModel)
 	{
 		out << Indent(level + 1);
-		WriteNormal(out, iShape);
+		WriteNormal(out, iShape, meshFilter);
 	}
 
 	// Write colors
@@ -692,7 +763,7 @@ void X3D_Writer::WriteAppearance(X3D_Text& out, IShape*& iShape, const Quantity_
 	out << "></Material></Appearance>\n";
 }
 
-void X3D_Writer::WriteCoordinate(X3D_Text& out, IShape*& iShape, bool isBoundaryEdges) const
+void X3D_Writer::WriteCoordinate(X3D_Text& out, IShape*& iShape, bool isBoundaryEdges, const vector<int>* meshFilter) const
 {
 	out << "<Coordinate";
 
@@ -704,10 +775,11 @@ void X3D_Writer::WriteCoordinate(X3D_Text& out, IShape*& iShape, bool isBoundary
 
 		out << " point='";
 		bool firstCoordinate = true;
+		const int meshCount = meshFilter ? (int)meshFilter->size() : iShape->GetMeshSize();
 
-		for (int i = 0; i < iShape->GetMeshSize(); ++i)
+		for (int n = 0; n < meshCount; ++n)
 		{
-			Mesh* mesh = iShape->GetMeshAt(i);
+			Mesh* mesh = iShape->GetMeshAt(meshFilter ? (*meshFilter)[n] : n);
 
 			for (int j = 0; j < mesh->GetCoordinateSize(); ++j)
 			{
@@ -733,7 +805,7 @@ void X3D_Writer::WriteCoordinate(X3D_Text& out, IShape*& iShape, bool isBoundary
 		out << "'/>\n";
 }
 
-void X3D_Writer::WriteCoordinateIndex(X3D_Text& out, IShape*& iShape, bool faceMesh) const
+void X3D_Writer::WriteCoordinateIndex(X3D_Text& out, IShape*& iShape, bool faceMesh, const vector<int>* meshFilter) const
 {
 	out << " coordIndex='";
 	bool firstIndex = true;
@@ -746,10 +818,11 @@ void X3D_Writer::WriteCoordinateIndex(X3D_Text& out, IShape*& iShape, bool faceM
 	};
 
 	int prevCoordCount = 0; // The number of previous coordinates
+	const int meshCount = meshFilter ? (int)meshFilter->size() : iShape->GetMeshSize();
 
-	for (int i = 0; i < iShape->GetMeshSize(); ++i)
+	for (int n = 0; n < meshCount; ++n)
 	{
-		Mesh* mesh = iShape->GetMeshAt(i);
+		Mesh* mesh = iShape->GetMeshAt(meshFilter ? (*meshFilter)[n] : n);
 
 		if (faceMesh) // Face mesh
 		{
@@ -788,7 +861,7 @@ void X3D_Writer::WriteCoordinateIndex(X3D_Text& out, IShape*& iShape, bool faceM
 	out << "'";
 }
 
-void X3D_Writer::WriteNormalIndex(X3D_Text& out, IShape*& iShape) const
+void X3D_Writer::WriteNormalIndex(X3D_Text& out, IShape*& iShape, const vector<int>* meshFilter) const
 {
 	out << " normalIndex='";
 	bool firstIndex = true;
@@ -801,10 +874,11 @@ void X3D_Writer::WriteNormalIndex(X3D_Text& out, IShape*& iShape) const
 	};
 
 	int prevCoordCount = 0; // The number of previous coordinates
+	const int meshCount = meshFilter ? (int)meshFilter->size() : iShape->GetMeshSize();
 
-	for (int i = 0; i < iShape->GetMeshSize(); ++i)
+	for (int n = 0; n < meshCount; ++n)
 	{
-		Mesh* mesh = iShape->GetMeshAt(i);
+		Mesh* mesh = iShape->GetMeshAt(meshFilter ? (*meshFilter)[n] : n);
 
 		// Traverse triangles
 		for (int j = 0; j < mesh->GetNormalIndexSize(); ++j)
@@ -882,14 +956,15 @@ void X3D_Writer::WriteColor(X3D_Text& out, IShape*& iShape) const
 		out << "'></Color>\n";
 }
 
-void X3D_Writer::WriteNormal(X3D_Text& out, IShape*& iShape) const
+void X3D_Writer::WriteNormal(X3D_Text& out, IShape*& iShape, const vector<int>* meshFilter) const
 {
 	out << "<Normal vector='";
 	bool firstNormal = true;
+	const int meshCount = meshFilter ? (int)meshFilter->size() : iShape->GetMeshSize();
 
-	for (int i = 0; i < iShape->GetMeshSize(); ++i)
+	for (int n = 0; n < meshCount; ++n)
 	{
-		Mesh* mesh = iShape->GetMeshAt(i);
+		Mesh* mesh = iShape->GetMeshAt(meshFilter ? (*meshFilter)[n] : n);
 
 		for (int j = 0; j < mesh->GetNormalSize(); ++j)
 		{

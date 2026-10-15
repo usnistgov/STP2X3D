@@ -19,11 +19,15 @@ public:
 
 	bool IsMappedItem(const TopoDS_Shape& shape) const;
 
+	// Surface colour from STYLED_ITEM when XCAF did not store it on the shape.
+	bool GetStyledSurfaceColor(const TopoDS_Shape& shape, Quantity_ColorRGBA& color) const;
+
 	void AddRosetteGeometries(vector<TopoDS_Shape>& rosettes);
 	void AddSectionPlanes(vector<TopoDS_Shape>& sectionPlanes);
 
 protected:
 	void StoreStepDataForShapes(void);
+	void StoreStyledSurfaceColors(void);
 	double GetUnitConversionFactor(void);
 	void Clear(void);
 
@@ -31,6 +35,8 @@ private:
 	unordered_map<int, string> m_shapeIDentityTypeMap;
 	unordered_map<int, int> m_shapeIDentityIDMap;
 	unordered_map<int, string> m_shapeIDentityNameMap;
+	// Keyed by TopoDS_TShape*, so orientation does not hide a shell or face style.
+	unordered_map<const void*, Quantity_ColorRGBA> m_styledSurfaceColor;
 
 	STEPControl_Reader m_reader;
 };

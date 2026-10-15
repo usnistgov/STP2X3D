@@ -41,7 +41,7 @@ protected:
 
 	void WriteTransformAttributes(X3D_Text& out, const gp_Trsf& trsf) const;
 	void WriteShape(X3D_Text& out, IShape*& iShape, int level);
-	void WriteIndexedFaceSet(X3D_Text& out, IShape*& iShape, int level);
+	void WriteIndexedFaceSet(X3D_Text& out, IShape*& iShape, int level, const vector<int>* meshFilter = nullptr, const Quantity_ColorRGBA* groupColor = nullptr);
 	void WriteIndexedLineSet(X3D_Text& out, IShape*& iShape, int level);
 
 	void WriteAppearance(X3D_Text& out, IShape*& iShape, const Quantity_Color& diffuseColor, bool isDiffuseOn,
@@ -50,11 +50,11 @@ protected:
 											double& shininess, bool isShininessOn,
 											double& ambientIntensity, bool isAmbientIntensityOn,
 											double& transparency, bool isTransparencyOn);
-	void WriteCoordinate(X3D_Text& out, IShape*& iShape, bool isBoundaryEdges) const;
-	void WriteCoordinateIndex(X3D_Text& out, IShape*& iShape, bool faceMesh) const;
-	void WriteNormalIndex(X3D_Text& out, IShape*& iShape) const;
+	void WriteCoordinate(X3D_Text& out, IShape*& iShape, bool isBoundaryEdges, const vector<int>* meshFilter = nullptr) const;
+	void WriteCoordinateIndex(X3D_Text& out, IShape*& iShape, bool faceMesh, const vector<int>* meshFilter = nullptr) const;
+	void WriteNormalIndex(X3D_Text& out, IShape*& iShape, const vector<int>* meshFilter = nullptr) const;
 	void WriteColor(X3D_Text& out, IShape*& iShape) const;
-	void WriteNormal(X3D_Text& out, IShape*& iShape) const;
+	void WriteNormal(X3D_Text& out, IShape*& iShape, const vector<int>* meshFilter = nullptr) const;
 
 	// Authored X3D literals (defaults, GDT, caps, etc.) vs STEP-derived display colors.
 	bool IsFixedLiteralColor(const Quantity_Color& color) const;

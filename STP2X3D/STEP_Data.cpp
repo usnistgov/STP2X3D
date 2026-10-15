@@ -1,12 +1,16 @@
 #include "stdafx.h"
 #include "STEP_Data.h"
 
+#include <StepVisual_OverRidingStyledItem.hxx>
+#include <StepVisual_StyledItem.hxx>
+
 
 
 STEP_Data::STEP_Data(const STEPControl_Reader& reader)
 	:m_reader(reader)
 {
 	StoreStepDataForShapes();
+	StoreStyledSurfaceColors();
 }
 
 STEP_Data::~STEP_Data(void)
@@ -83,6 +87,93 @@ const int STEP_Data::GetEntityIDFromShape(const TopoDS_Shape& shape) const
 		stepEntityID = m_shapeIDentityIDMap.find(shapeID)->second;
 
 	return stepEntityID;
+}
+
+void STEP_Data::StoreStyledSurfaceColors(void)
+{
+	const Handle(XSControl_WorkSession)& workSession = m_reader.WS();
+
+	if (workSession.IsNull()
+		|| workSession->Model().IsNull()
+		|| workSession->TransferReader().IsNull())
+		return;
+
+	const Handle(Transfer_TransientProcess)& transProcess = workSession->TransferReader()->TransientProcess();
+
+	if (transProcess.IsNull())
+		return;
+
+	// XCAF reads colours before OPEN_SHELL sub-shapes are registered, so a
+	// style on a shell is dropped. Keep the STEP surface colour for that case.
+	STEPConstruct_Styles styles(workSession);
+
+	if (!styles.LoadStyles())
+		return;
+
+	for (int i = 1; i <= styles.NbStyles(); ++i)
+	{
+		const Handle(StepVisual_StyledItem)& style = styles.Style(i);
+
+		if (style.IsNull()
+			|| style->IsKind(STANDARD_TYPE(StepVisual_OverRidingStyledItem)))
+			continue;
+
+		Handle(StepVisual_Colour) surfaceColour, boundaryColour, curveColour;
+		STEPConstruct_RenderingProperties renderingProps;
+		bool isComponent = false;
+
+		if (!styles.GetColors(style, surfaceColour, boundaryColour, curveColour, renderingProps, isComponent))
+			continue;
+
+		if (surfaceColour.IsNull()
+			&& !renderingProps.IsDefined())
+			continue;
+
+		Quantity_ColorRGBA color;
+
+		if (renderingProps.IsDefined())
+			color = renderingProps.GetRGBAColor();
+		else
+		{
+			Quantity_Color rgb;
+
+			if (!STEPConstruct_Styles::DecodeColor(surfaceColour, rgb))
+				continue;
+
+			color = Quantity_ColorRGBA(rgb);
+		}
+
+		Handle(Standard_Transient) target = style->ItemAP242().Value();
+
+		if (target.IsNull())
+			target = style->Item();
+
+		if (target.IsNull())
+			continue;
+
+		const TopoDS_Shape& shape = TransferBRep::ShapeResult(transProcess->Find(target));
+
+		if (shape.IsNull()
+			|| shape.TShape().IsNull())
+			continue;
+
+		m_styledSurfaceColor[shape.TShape().get()] = color;
+	}
+}
+
+bool STEP_Data::GetStyledSurfaceColor(const TopoDS_Shape& shape, Quantity_ColorRGBA& color) const
+{
+	if (shape.IsNull()
+		|| shape.TShape().IsNull())
+		return false;
+
+	const auto found = m_styledSurfaceColor.find(shape.TShape().get());
+
+	if (found == m_styledSurfaceColor.end())
+		return false;
+
+	color = found->second;
+	return true;
 }
 
 const string STEP_Data::GetEntityNameFromShape(const TopoDS_Shape& shape) const
@@ -441,4 +532,5 @@ void STEP_Data::Clear(void)
 {
 	m_shapeIDentityTypeMap.clear();
 	m_shapeIDentityIDMap.clear();
+	m_styledSurfaceColor.clear();
 }

@@ -331,6 +331,29 @@ void STEP_Reader::AddColors(IShape*& iShape) const
 		if (m_colorTool->GetColor(shape, XCAFDoc_ColorSurf, solidColor))
 			isSolidColored = true;
 
+		// Used only when XCAF has no solid colour. Keeps already-coloured solids unchanged.
+		unordered_map<const void*, Quantity_ColorRGBA> shellColorByFace;
+
+		if (!isSolidColored
+			&& m_stepData)
+		{
+			for (TopExp_Explorer expShell(shape, TopAbs_SHELL); expShell.More(); expShell.Next())
+			{
+				Quantity_ColorRGBA shellColor;
+
+				if (!m_stepData->GetStyledSurfaceColor(expShell.Current(), shellColor))
+					continue;
+
+				for (TopExp_Explorer expShellFace(expShell.Current(), TopAbs_FACE); expShellFace.More(); expShellFace.Next())
+				{
+					const TopoDS_Shape& shellFace = expShellFace.Current();
+
+					if (!shellFace.TShape().IsNull())
+						shellColorByFace.emplace(shellFace.TShape().get(), shellColor);
+				}
+			}
+		}
+
 		TopExp_Explorer ExpFace;
 		for (ExpFace.Init(shape, TopAbs_FACE); ExpFace.More(); ExpFace.Next())
 		{
@@ -343,13 +366,29 @@ void STEP_Reader::AddColors(IShape*& iShape) const
 			if (m_colorTool->GetColor(face, XCAFDoc_ColorSurf, faceColor))
 				isFaceColored = true;
 
-			// Priority: face color -> solid color -> default color
+			// Priority: XCAF face -> XCAF solid -> STEP shell/face style -> default
 			if (isFaceColored)
 				iShape->AddColor(face, faceColor);
 			else if (isSolidColored)
 				iShape->AddColor(face, solidColor);
 			else
-				iShape->AddColor(face, m_defaultFaceColor);
+			{
+				Quantity_ColorRGBA styledColor;
+				const auto shellColor = face.TShape().IsNull()
+					? shellColorByFace.end()
+					: shellColorByFace.find(face.TShape().get());
+
+				if (shellColor != shellColorByFace.end())
+					iShape->AddColor(face, shellColor->second);
+				else if (m_stepData
+					&& m_stepData->GetStyledSurfaceColor(face, styledColor))
+					iShape->AddColor(face, styledColor);
+				else if (m_stepData
+					&& m_stepData->GetStyledSurfaceColor(shape, styledColor))
+					iShape->AddColor(face, styledColor);
+				else
+					iShape->AddColor(face, m_defaultFaceColor);
+			}
 		}
 	}
 	else // Wire set (Wires, Edges)
